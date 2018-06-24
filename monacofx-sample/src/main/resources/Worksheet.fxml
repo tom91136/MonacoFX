@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<?import net.kurobako.monacofx.MonacoPane?><?import javafx.scene.control.SplitPane?><?import javafx.scene.control.TextArea?><?import javafx.scene.layout.VBox?>
+<VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
+    xmlns="http://javafx.com/javafx/8">
+    <children>
+        <SplitPane dividerPositions="0.5" VBox.vgrow="ALWAYS">
+            <items>
+
+                <MonacoPane />
+                <TextArea></TextArea>
+            </items>
+        </SplitPane>
+    </children>
+</VBox>
