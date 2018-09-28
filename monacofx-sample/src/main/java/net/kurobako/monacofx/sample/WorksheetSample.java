@@ -13,8 +13,7 @@ public class WorksheetSample implements Sample {
 	public Node mkRoot() {
 		try {
 			Parent node = FXMLLoader.load(getClass().getResource("/Worksheet.fxml"));
-			// TODO
-			throw new RuntimeException("Impl");
+			return node;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}

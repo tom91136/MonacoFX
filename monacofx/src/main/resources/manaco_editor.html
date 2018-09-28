@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <style>
+        body {
+            margin: 0;
+        }
+    </style>
+    <script>
+
+        "use strict";
+
+        const JavaFXWK = navigator.userAgent.includes("JavaFX");
+
+
+        window.onload = () => {
+            if (!JavaFXWK) {
+                // load require js from CDN
+                console.log("Non JavaFX Webkit context: using CDN");
+                const script = document.createElement("script");
+                script.setAttribute("src", "https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.5/require.min.js");
+                script.onload = () => initialise();
+                document.head.appendChild(script);
+            }
+        };
+
+        function initialise(original, originalMime, modified, modifiedMine) {
+
+            if (JavaFXWK) {
+                // some AMD loader will be in scope and that custom protocol for fx:// will be handled
+                console.log(`Within JavaFX Webkit context: require is ${require}`);
+            }
+
+            require.config({
+                paths: {
+                    'vs': JavaFXWK ?
+                        'fx://min/vs' :
+                        'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.14.2/min/vs'
+                }
+            });
+            require(['vs/editor/editor.main'], function () {
+                const container = document.getElementById("container");
+                const originalModel = monaco.editor.createModel(original, originalMime);
+                const modifiedModel = monaco.editor.createModel(modified, modifiedMine);
+                const diffEditor = monaco.editor.createDiffEditor(container, {
+                    fixedOverflowWidgets:true,
+                    enableSplitViewResizing: true,
+                    renderSideBySide: true,
+                    mouseWheelScrollSensitivity: JavaFXWK ? 0.07: 1
+                    // scrollbar: true
+                });
+                diffEditor.setModel({
+                    original: originalModel,
+                    modified: modifiedModel
+                });
+
+                window.addEventListener("resize", () => diffEditor.layout());
+
+            });
+        }
+
+
+    </script>
+</head>
+<body>
+<div id="container" style="width:100%;height:100vh"></div>
+</body>
+</html>

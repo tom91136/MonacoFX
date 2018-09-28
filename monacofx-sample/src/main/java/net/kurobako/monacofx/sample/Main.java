@@ -15,7 +15,7 @@ public class Main extends Application {
 		FXMLLoader loader = new FXMLLoader(getClass().getResource("/Sampler.fxml"));
 		Parent parent = loader.load();
 		loader.<SamplerController>getController().hostServices = getHostServices(); // seems ugly
-		primaryStage.setTitle("GesturePane samples");
+		primaryStage.setTitle("MoancoPane samples");
 		primaryStage.setScene(new Scene(parent));
 		primaryStage.show();
 	}
