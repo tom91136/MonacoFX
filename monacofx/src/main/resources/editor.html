@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <style>
+        body {
+            margin: 0;
+        }
+    </style>
+
+    <title></title>
+</head>
+<body>
+<div id="editor" style="position: absolute; top: 0; left: 0; bottom: 0; right: 0; overflow: hidden"></div>
+<script>
+    "use strict";
+
+    function initialise() {
+        let bridge = window["bridge"];
+        console.log(bridge)
+        require.config({
+            paths: {
+                'vs': location.origin + '/vs'
+            }
+        });
+        require(['vs/editor/editor.main'], function () {
+            console.log(bridge)
+            bridge(document.getElementById("editor"));
+        });
+    }
+</script>
+</body>
+</html>

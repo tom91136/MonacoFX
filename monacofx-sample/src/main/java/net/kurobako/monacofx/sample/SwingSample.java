@@ -4,6 +4,7 @@ import net.kurobako.monacofx.MonacoPane;
 import net.kurobako.monacofx.sample.SamplerController.Sample;
 
 import java.awt.BorderLayout;
+import java.io.IOException;
 
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -56,9 +57,16 @@ public class SwingSample implements Sample {
 			frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 
 			Platform.runLater(() -> {
-				MonacoPane pane = new MonacoPane();
-				Scene scene = new Scene(pane, frame.getWidth(), frame.getHeight());
-				fxPanel.setScene(scene);
+
+				try {
+					MonacoPane  pane = new MonacoPane();
+					Scene scene = new Scene(pane, frame.getWidth(), frame.getHeight());
+					fxPanel.setScene(scene);
+				} catch (IOException e1) {
+					throw  new RuntimeException(e1);
+
+				}
+
 
 			});
 

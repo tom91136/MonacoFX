@@ -1,0 +1,7 @@
+{
+  "inputFiles": ["../monacofx/node_modules/monaco-editor/monaco.d.ts"],
+  "mode": "file",
+  "json" : "a.json",
+  "excludeExternals": true,
+  "includeDeclarations": true
+}

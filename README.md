@@ -5,14 +5,18 @@ MonacoFX
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Download](https://api.bintray.com/packages/tom91136/maven/monacofx/images/download.svg)](https://bintray.com/tom91136/maven/monacofx/_latestVersion)
 
-Embedded VisualStudioCode editor(monaco) for JavaFX
+Embedded VisualStudioCode editor(monaco) for JavaFX.
  
 Features
 
  * Fully configurable Java interfaces, no TypeScript/JavaScript required
  * Works in Swing via JFXPanel
  * Mostly works in SceneBuilder*
- * Zero dependency
+
+Known limitations:
+
+ * Java >= 11 is required as only JavaFX 11+ have a WebView that can correctly host the editor implementation        
+ * Enabling ligatures have no effect as JavaFX's currently does not support [rendering ligatures](https://bugs.openjdk.java.net/browse/JDK-8091616)
 
 ## How to use
 
