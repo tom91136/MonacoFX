@@ -2,19 +2,20 @@ package net.kurobako.monaco
 
 object JsUnionGen {
 
-	def apply(pkg: String, clsName: String, n: Int): Either[Throwable, (String, String)] = (0 until n).map("T" + _).toList match {
-		case ts@(t0 :: tn) =>
-			val tpeParams = ts.mkString(", ")
+  def apply(pkg: String, clsName: String, n: Int): Either[Throwable, (String, String)] =
+    (0 until n).map("T" + _).toList match {
+      case ts @ (t0 :: tn) =>
+        val tpeParams = ts.mkString(", ")
 
-			val classes = ts.zipWithIndex.map { case (t, i) =>
-				val methods = ts.zipWithIndex.map {
-					case (t, j) if i == j => s"\t@Override public Optional<$t> maybe$t() { return Optional.of(value); }"
-					case (t, _)           => s"\t@Override public Optional<$t> maybe$t() { return Optional.empty(); }"
-				}.mkString("\n")
+        val classes = ts.zipWithIndex.map { case (t, i) =>
+          val methods = ts.zipWithIndex.map {
+            case (t, j) if i == j => s"\t@Override public Optional<$t> maybe$t() { return Optional.of(value); }"
+            case (t, _)           => s"\t@Override public Optional<$t> maybe$t() { return Optional.empty(); }"
+          }.mkString("\n")
 
-				val wildcards = List.fill(n)("?").mkString(", ")
+          val wildcards = List.fill(n)("?").mkString(", ")
 
-				s"""class ${t}Projection<$tpeParams> implements $clsName$n<$tpeParams>{
+          s"""class ${t}Projection<$tpeParams> implements $clsName$n<$tpeParams>{
 				   |	private final $t value;
 				   |	private ${t}Projection($t value) {this.value = value;}
 				   |$methods
@@ -28,27 +29,25 @@ object JsUnionGen {
 				   |	@Override public int hashCode() { return Objects.hash(value); }
 				   |}
 				   |""".stripMargin
-			}.map(_.linesWithSeparators.map("\t" + _).mkString).mkString("\n")
+        }.map(_.linesWithSeparators.map("\t" + _).mkString).mkString("\n")
 
+        val staticFactories = ts.map { t =>
+          val name = t.toLowerCase
+          s"\tstatic <$tpeParams> $clsName$n<$tpeParams> $name($t $name) { return new ${t}Projection<>($name); }"
+        }.mkString("\n")
 
-			val staticFactories = ts.map { t =>
-				val name = t.toLowerCase
-				s"\tstatic <$tpeParams> $clsName$n<$tpeParams> $name($t $name) { return new ${t}Projection<>($name); }"
-			}.mkString("\n")
-
-			val methods = ts.map { t =>
-				s"""
+        val methods = ts.map { t =>
+          s"""
 				   |	Optional<$t> maybe$t();
 				   |	default $t get$t() { return maybe$t().get(); }
 				   |	default boolean is$t() { return maybe$t().isPresent(); }
 				   |""".stripMargin
-			}.mkString("\n")
+        }.mkString("\n")
 
-			def foldChain(t: String) = s"maybe$t().map(if$t)"
+        def foldChain(t: String) = s"maybe$t().map(if$t)"
 
-
-			(s"${pkg.replace('.', '/')}/$clsName$n.java" ->
-			 s"""
+        (s"${pkg.replace('.', '/')}/$clsName$n.java" ->
+          s"""
 				|package $pkg;
 				|
 				|import java.util.Objects;
@@ -72,9 +71,7 @@ object JsUnionGen {
 				|}
 				|""".stripMargin).pureF
 
-
-		case Nil => failF("n < 2")
-	}
-
+      case Nil => failF("n < 2")
+    }
 
 }

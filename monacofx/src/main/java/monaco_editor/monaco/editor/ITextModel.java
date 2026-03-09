@@ -401,6 +401,15 @@ public class ITextModel extends JsProxy {
 
  	/**
 	 * <p>Gets all the decorations for the lines between <code>startLineNumber</code> and <code>endLineNumber</code> as an array.</p>
+	 * <p><strong>This is an overloaded method resulting from TypeScript unions/intersections, see original for parameter docs</strong></p>
+	 * See {@code monaco.d.ts:1801:27}<br>
+	 * Original signature:<br>
+	 * {@code getLinesDecorations(startLineNumber: number, endLineNumber: number, ownerId?: number, filterOutValidation?: boolean): IModelDecoration[]; }<br>
+	 */
+	public List<IModelDecoration> getLinesDecorations(@Nonnull Double startLineNumber, @Nonnull Double endLineNumber, @Nonnull Double ownerId) { return call("getLinesDecorations", ofArray(IModelDecoration::new), startLineNumber, endLineNumber, ownerId); }
+
+ 	/**
+	 * <p>Gets all the decorations for the lines between <code>startLineNumber</code> and <code>endLineNumber</code> as an array.</p>
 	 * See {@code monaco.d.ts:1801:27}<br>
 	 * Original signature:<br>
 	 * {@code getLinesDecorations(startLineNumber: number, endLineNumber: number, ownerId?: number, filterOutValidation?: boolean): IModelDecoration[]; }<br>
@@ -411,15 +420,6 @@ public class ITextModel extends JsProxy {
 	 * @param filterOutValidation If set, it will ignore decorations specific to validation (i.e. warnings, errors).
 	 */
 	public List<IModelDecoration> getLinesDecorations(@Nonnull Double startLineNumber, @Nonnull Double endLineNumber, @Nonnull Double ownerId, @Nonnull Boolean filterOutValidation) { return call("getLinesDecorations", ofArray(IModelDecoration::new), startLineNumber, endLineNumber, ownerId, filterOutValidation); }
-
- 	/**
-	 * <p>Gets all the decorations for the lines between <code>startLineNumber</code> and <code>endLineNumber</code> as an array.</p>
-	 * <p><strong>This is an overloaded method resulting from TypeScript unions/intersections, see original for parameter docs</strong></p>
-	 * See {@code monaco.d.ts:1801:27}<br>
-	 * Original signature:<br>
-	 * {@code getLinesDecorations(startLineNumber: number, endLineNumber: number, ownerId?: number, filterOutValidation?: boolean): IModelDecoration[]; }<br>
-	 */
-	public List<IModelDecoration> getLinesDecorations(@Nonnull Double startLineNumber, @Nonnull Double endLineNumber, @Nonnull Double ownerId) { return call("getLinesDecorations", ofArray(IModelDecoration::new), startLineNumber, endLineNumber, ownerId); }
 
  	/**
 	 * <p>Gets all the decorations for the lines between <code>startLineNumber</code> and <code>endLineNumber</code> as an array.</p>
