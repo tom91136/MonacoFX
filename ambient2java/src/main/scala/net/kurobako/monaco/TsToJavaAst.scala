@@ -552,11 +552,11 @@ object TsToJavaAst {
       case (i, xs)       => failF(s"$i has multiple references: $xs")
     }.toList.sequence.map(_.toMap)
 
-  def main(args: Array[String]): Unit = {
+  def runConversion(jsonFile: File, dtsFile: File): Either[Throwable, cats.data.ValidatedNel[Throwable, List[(String, String)]]] = {
     import scala.collection.parallel.CollectionConverters._
 
     val a = for {
-      tsTypedGlobal <- time("Read TS AST")(TypeDocParser(File("a.json"), File("monaco.d.ts")))
+      tsTypedGlobal <- time("Read TS AST")(TypeDocParser(jsonFile, dtsFile))
       aliases = time("Isolate alias") {
         tsTypedGlobal.modules.flatMap(_.aliases).map(a =>
           a.id -> (a.tpe match {
@@ -614,26 +614,26 @@ object TsToJavaAst {
       }
 
     } yield tupleShims |+| unionShims |+| sources
-    a.dump match {
-      case Validated.Invalid(es) =>
+    a
+  }
 
+  def main(args: Array[String]): Unit = {
+    val (jsonFile, dtsFile, outputDir) = args.toList match {
+      case json :: dts :: out :: Nil => (File(json), File(dts), File(out))
+      case _ =>
+        System.err.println("Usage: TsToJavaAst <typedoc-json> <monaco-dts> <output-dir>")
+        sys.exit(1)
+    }
+
+    runConversion(jsonFile, dtsFile).dump match {
+      case Validated.Invalid(es) =>
         es.toList.foreach(e => println(e.getMessage))
 
       case Validated.Valid(xs) =>
-
-        val base = File("/home/tom/MonacoFX/monacofx/src/main/java/")
-
         xs.foreach { case (f, c) =>
-
-          //					pprint.pprintln(tl)
-
-          (base / f).createFileIfNotExists(createParents = true).overwrite(c)
-
+          (outputDir / f).createFileIfNotExists(createParents = true).overwrite(c)
         }
-
-      //				println(xs)
     }
-
   }
 
 }
