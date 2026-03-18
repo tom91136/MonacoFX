@@ -2,29 +2,11 @@ package net.kurobako.monaco
 
 import cats.*
 import cats.syntax.all.*
-import net.kurobako.monaco.Ast.Name
-import net.kurobako.monaco.Ast.Sym
-import net.kurobako.monaco.JavaAst.DelegationBody.Call
-import net.kurobako.monaco.JavaAst.DelegationBody.GetMember
-import net.kurobako.monaco.JavaAst.DelegationBody.Raw
-import net.kurobako.monaco.JavaAst.DelegationBody.SetMember
+import net.kurobako.monaco.Ast.{Name, Sym}
+import net.kurobako.monaco.JavaAst.DelegationBody.*
 import net.kurobako.monaco.JavaAst.JEnum.JEnumEntry
-import net.kurobako.monaco.JavaAst.JType.JPrimitive
-import net.kurobako.monaco.JavaAst.JType.JavaGeneric
-import net.kurobako.monaco.JavaAst.JType.JavaInt
-import net.kurobako.monaco.JavaAst.JType.JavaList
-import net.kurobako.monaco.JavaAst.JType.JavaLiteral
-import net.kurobako.monaco.JavaAst.JType.JavaObject
-import net.kurobako.monaco.JavaAst.JType.JavaRef
-import net.kurobako.monaco.JavaAst.JType.JavaString
-import net.kurobako.monaco.JavaAst.JType.JavaTypeVar
-import net.kurobako.monaco.JavaAst.JType.JavaUnion
-import net.kurobako.monaco.JavaAst.JType.JavaVoid
-import net.kurobako.monaco.TsToJavaAst.JNonnull
-import net.kurobako.monaco.TsToJavaAst.JNullable
-import net.kurobako.monaco.TsToJavaAst.JOptional
-import net.kurobako.monaco.TsToJavaAst.JsEnum
-import net.kurobako.monaco.TsToJavaAst.JsUnion
+import net.kurobako.monaco.JavaAst.JType.{JPrimitive, JavaGeneric, JavaInt, JavaList, JavaLiteral, JavaObject, JavaRef, JavaString, JavaTypeVar, JavaUnion, JavaVoid}
+import net.kurobako.monaco.TsToJavaAst.*
 import netscape.javascript.JSObject
 
 object JavaAst {
@@ -42,9 +24,10 @@ object JavaAst {
     case object JavaDouble  extends JPrimitive(Sym.unsafe("double"), Sym.unsafe("Double"))
     case object JavaBoolean extends JPrimitive(Sym.unsafe("boolean"), Sym.unsafe("Boolean"))
     case object JavaVoid    extends JPrimitive(Sym.unsafe("void"), Sym.unsafe("Void"))
-    case object JavaString
-        extends JType[Nothing] // String is not a ref because JSObject auto converts it to the correct Java type
-    case object JavaObject               extends JType[Nothing] // JSObject is the base type if conversion fails
+    // XXX String is not a ref --JSObject auto-converts it to the correct Java type
+    case object JavaString extends JType[Nothing]
+    // XXX JSObject is the base/fallback type when conversion fails
+    case object JavaObject               extends JType[Nothing]
     case class JavaLiteral(name: String) extends JType[Nothing]
 
     case class JavaTypeVar[+A](name: Sym)                                 extends JType[A]
@@ -64,11 +47,12 @@ object JavaAst {
 
   sealed trait DelegationBody[+A]
   object DelegationBody {
-    //		case class ConcreteType[A](that : JType[A], nullable : Boolean  )
     case class GetMember[+A](name: Sym, tpe: JTypeContext[A])                                  extends DelegationBody[A]
     case class SetMember[+A](name: Sym, param: Sym, tpe: JTypeContext[A])                      extends DelegationBody[A]
     case class Call[+A](name: Sym, params: List[(Sym, JTypeContext[A])], tpe: JTypeContext[A]) extends DelegationBody[A]
-    case class Raw(lines: List[String]) extends DelegationBody[Nothing]
+    case class Raw(lines: List[String])                                              extends DelegationBody[Nothing]
+    case class Override[+A](methodName: Sym, arity: Int, paramTypes: List[JType[A]]) extends DelegationBody[A]
+    case class InvokeReceiver[+A](params: List[(Sym, JTypeContext[A])], tpe: JTypeContext[A]) extends DelegationBody[A]
   }
 
   sealed trait JTopLevel[+A] {
@@ -113,7 +97,6 @@ object JavaAst {
     case class JStrEnum[A](name: Name, entries: List[JEnumEntry[String]], doc: DocLns) extends JEnum[A, String]
   }
 
-  // not actually a tree, but close
   sealed trait JTypeTree[+A]
   object JTypeTree {
 
@@ -144,11 +127,70 @@ object JavaAst {
 
   val ImplicitImportPkg = Vector("java", "lang")
 
-  def fmtTopLevelSource(tl: JTopLevel[Name], enums: Set[String]): (String, String) = {
+  private val JavaKeywords: Set[String] = Set(
+    "abstract",
+    "assert",
+    "boolean",
+    "break",
+    "byte",
+    "case",
+    "catch",
+    "char",
+    "class",
+    "const",
+    "continue",
+    "default",
+    "do",
+    "double",
+    "else",
+    "enum",
+    "extends",
+    "final",
+    "finally",
+    "float",
+    "for",
+    "goto",
+    "if",
+    "implements",
+    "import",
+    "instanceof",
+    "int",
+    "interface",
+    "long",
+    "native",
+    "new",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "return",
+    "short",
+    "static",
+    "strictfp",
+    "super",
+    "switch",
+    "synchronized",
+    "this",
+    "throw",
+    "throws",
+    "transient",
+    "try",
+    "void",
+    "volatile",
+    "while",
+    "var",
+    "yield"
+  )
+  private def javaId(s: String): String = if (JavaKeywords.contains(s)) s"${s}_" else s
+
+  def fmtTopLevelSource(tl: JTopLevel[Name], enums: Set[String], generatedDate: String = java.time.Instant.now().toString): (String, String) = {
+
+    val generatedAnnotation = s"""@javax.annotation.processing.Generated(value = "ambient2java", date = "$generatedDate")"""
 
     def fmtDoc(lines: List[String], indent: Int = 0): String = {
       val prefix = "\t" * indent
-      lines.map(prefix + _).mkString("\n")
+      // XXX escape backslashes so \uXXXX in comments don't trigger Java's unicode escape processing
+      lines.map(l => prefix + l.replace("\\", "&#92;")).mkString("\n")
     }
 
     def fmtImports(xs: List[Name]) = xs.distinct
@@ -175,25 +217,41 @@ object JavaAst {
         case JavaLiteral(name) => Nil                         -> name
         case JavaTypeVar(name) => Nil                         -> name.value
         case JavaUnion(actual) =>
-          val union = JsUnion(actual.size)
-          actual.foldMap(fmtTpe(_).map(_ :: Nil)).bimap(union :: _, tpes => s"${union.self}<${tpes.mkString(", ")}>")
+          // XXX only JsUnion2..4 shims exist; degrade larger unions to JSObject
+          if (actual.size > 4)
+            (Name.cls[JSObject] :: Nil) -> Name.cls[JSObject].self
+          else {
+            val union = JsUnion(actual.size)
+            actual.foldMap(fmtTpe(_).map(_ :: Nil)).bimap(union :: _, tpes => s"${union.self}<${tpes.mkString(", ")}>")
+          }
         case JavaList(name, dim) =>
 
           val list = Name.cls[java.util.List[?]]
           fmtTpe(name, boxed = true).bimap(list :: _, s => s"${list.self}<" * dim + s + ">" * dim)
 
+        // XXX JSObject is not generic in Java --degrade to raw JSObject
+        case JavaGeneric(JavaObject, _) =>
+          (Name.cls[JSObject] :: Nil) -> Name.cls[JSObject].self
         case JavaGeneric(name, parameters) =>
           val (rootNames, rootTpe) = fmtTpe(name)
-          parameters.foldMap(fmtTpe(_).map(_ :: Nil)).bimap(
-            rootNames ::: _,
-            tpes => s"${rootTpe.self}<${tpes.mkString(", ")}>"
-          )
-        case JavaRef(name) => Nil -> name
-        case JType.JavaIntersection(_) => ???
+          // XXX only shim classes are truly generic in Java; Monaco-generated classes are not parameterized
+          val isShimGeneric = rootTpe.startsWith("JsUnion") || rootTpe.startsWith("JsTuple") ||
+            rootTpe.startsWith("JsFunction") || rootTpe == "JsEnum" || rootTpe == "JsPromise" ||
+            rootTpe == "Optional"
+          if (isShimGeneric)
+            parameters.foldMap(fmtTpe(_).map(_ :: Nil)).bimap(
+              rootNames ::: _,
+              tpes => s"$rootTpe<${tpes.mkString(", ")}>"
+            )
+          else
+            (rootNames, rootTpe)
+        case JavaRef(name)             => Nil -> name
+        case JType.JavaIntersection(_) =>
+          (Name.cls[JSObject] :: Nil) -> Name.cls[JSObject].self
       }
 
     def fmtParamList(xs: List[(Sym, JTypeContext[String])]): (List[Name], String) = xs.foldMap { case (sym, tpe) =>
-      fmtInTpe(tpe, boxed = false).map(x => s"$x ${sym.value}" :: Nil)
+      fmtInTpe(tpe, boxed = false).map(x => s"$x ${javaId(sym.value)}" :: Nil)
     }.map(_.mkString(", "))
 
     def fmtTpeParamList(tpeParams: List[(Sym, Option[JTypeContext[String]])]): (List[Name], String) =
@@ -218,6 +276,7 @@ object JavaAst {
 			   |${fmtImports(varTpeNames ::: rtnTpeNames ::: enumMarkerNames)}
 			   |
 			   |${fmtDoc(e.doc)}
+			   |$generatedAnnotation
 			   |@SuppressWarnings("unused")
 			   |public enum ${e.name.self} implements $enumMarker {
 			   |${e.entries.map(m => s"${fmtDoc(m.doc, indent = 1)}\n\t${m.name.value}(${m.value.show})").mkString(",\n")};
@@ -228,7 +287,7 @@ object JavaAst {
 			   |""".stripMargin
     }
 
-    def fmtCode(x: DelegationBody[String]) = {
+    def fmtCode(x: DelegationBody[String]): (List[Name], String) = {
 
       def fmtOutWrapper(t: JType[String]): String =
         t match {
@@ -242,10 +301,10 @@ object JavaAst {
           case JavaUnion(actual)              => "null /*union*/"
           case JType.JavaIntersection(actual) => "null /*intersection*/"
           case JavaGeneric(JavaRef(cls), _)       => s"$cls ::new" // java infers the rest
+          case JavaGeneric(_, _)                  => s"null /*unsupported generic*/"
           case JavaRef(cls) if enums contains cls => s"ofJsEnum($cls.class)"
           case JavaRef(cls)                       => s"$cls::new"
-          case  _ => ???
-           
+
         }
       def fmtOutTpe(nullable: Boolean, expr: String) =
         if (nullable) s"return Optional.ofNullable($expr);" else s"return $expr;"
@@ -258,15 +317,15 @@ object JavaAst {
           case JavaString | JavaObject | _: JPrimitive => s"""set("$prop", $param);"""
           case JavaLiteral(name)                       => ""
           case JavaTypeVar(name)                       => ""
-          case JavaList(name, dim)                     => ""
-          case JavaGeneric(name, parameters)           => ""
+          case JavaList(_, _)                          => s"""set("$prop", $param);"""
+          case JavaGeneric(_, _)                       => s"""set("$prop", $param);"""
           case JavaUnion(actual)                       => s"""set("$prop", $param);"""
           case JavaRef(name) if enums contains name    => s"""set("$prop", $param);"""
           case JavaRef(_)                              => s"""set("$prop", $param);"""
-          case JType.JavaIntersection(_)               => ???
+          case JType.JavaIntersection(_)               => s"""set("$prop", $param);"""
         }) :: "return this;" :: Nil
 
-      (x match {
+      val lines: List[String] = x match {
         case GetMember(name, tpe)        => getter(name.value, tpe)
         case SetMember(name, param, tpe) => setter(name.value, param.value, tpe)
         case Call(name, params, tpe)     =>
@@ -279,8 +338,56 @@ object JavaAst {
             case JavaVoid => s"$expr;"
             case _        => fmtOutTpe(tpe.nullable, expr)
           }) :: Nil
-        case Raw(lines) => lines
-      }) match {
+        case Raw(lines)                              => lines
+        case Override(methodName, arity, paramTypes) =>
+          if (paramTypes.isEmpty)
+            List(s"""return bindCallback("${methodName.value}", $arity, value);""")
+          else {
+            val args   = (0 until arity).map(i => s"a$i").mkString(",")
+            val lifted = paramTypes.zipWithIndex.map { case (tpe, i) =>
+              val a = s"a$i"
+              tpe match {
+                case JavaRef(cls) if enums contains cls => s"ofJsEnum($cls.class).apply(ctx, $a)"
+                case JavaRef(cls)                       => s"new $cls(ctx, $a)"
+                case JavaGeneric(JavaRef(cls), _)       => s"new $cls(ctx, $a)"
+                case JavaObject                         => s"(JSObject) $a"
+                case JavaString                         => s"(String) $a"
+                case p: JPrimitive                      => p.unboxed.value match {
+                    case "void"    => s"$a"
+                    case "boolean" => s"(Boolean) $a"
+                    case "int"     => s"((Number) $a).intValue()"
+                    case "double"  => s"((Number) $a).doubleValue()"
+                    case _         => s"$a"
+                  }
+                case l: JavaList[?] => s"${fmtOutWrapper(tpe)}.apply(ctx, $a)"
+                case _              => s"(JSObject) $a"
+              }
+            }.mkString(", ")
+            List(
+              s"""return bindCallback("${methodName.value}", $arity, (JsFunction$arity)($args) -> ((JsFunction$arity)value).invoke($lifted));"""
+            )
+          }
+        case DelegationBody.InvokeReceiver(params, tpe) =>
+          val ps = params.map(_._1.value) match {
+            case Nil => ""
+            case xs  => xs.mkString(", ", ", ", "")
+          }
+          val expr = s"""invokeThis(${fmtOutWrapper(tpe.value)}$ps)"""
+          (tpe.value match {
+            case JavaVoid => s"$expr;"
+            case _        => fmtOutTpe(tpe.nullable, expr)
+          }) :: Nil
+      }
+
+      val extraImports: List[Name] = x match {
+        case Override(_, arity, pts) if pts.nonEmpty =>
+          TsToJavaAst.JsFunction(arity) :: (pts.collect {
+            case JavaObject => Name.cls[JSObject]
+          })
+        case _ => Nil
+      }
+
+      extraImports -> (lines match {
         case Nil         => "{}"
         case line :: Nil => s"""{ $line }
 									   |""".stripMargin
@@ -288,7 +395,7 @@ object JavaAst {
 									   |${xs.map("\t\t" + _).mkString("\n")}
 									   |	}
 									   |""".stripMargin
-      }
+      })
     }
 
     file -> (tl.map(_.self) match {
@@ -296,27 +403,35 @@ object JavaAst {
         Apply[(List[Name], *)].map3(
           fmtTpeParamList(tpeParams),
           ctors.foldMap { case JCtor(params, code, doc) =>
+            val (codeNames, codeStr) = fmtCode(code)
             fmtParamList(params).map { ps =>
               s"""${fmtDoc(doc, indent = 1)}
-							   |	public ${name.self}($ps) ${fmtCode(code)}
+							   |	public ${name.self}($ps) $codeStr
 							   | """.stripMargin
-            }
+            }.bimap(codeNames ::: _, identity)
           },
-          methods.foldMap { case JMethod(Sym(name), tpeParams, params, rtn, code, doc, _) =>
+          methods.foldMap { case JMethod(Sym(rawName), tpeParams, params, rtn, code, doc, _) =>
+            val name                 = javaId(rawName)
+            val (codeNames, codeStr) = fmtCode(code)
+            val unchecked            = code match {
+              case Override(_, _, pts) if pts.nonEmpty => "\n\t@SuppressWarnings(\"unchecked\")"
+              case _                                   => ""
+            }
             Apply[(List[Name], *)].map3(
               fmtTpeParamList(tpeParams),
               fmtOutTpe(rtn, boxed = false),
               fmtParamList(params)
             ) { (tps, r, ps) =>
-              s"""${fmtDoc(doc, indent = 1)}
-							   |	public$tps $r $name($ps) ${fmtCode(code)}
+              s"""${fmtDoc(doc, indent = 1)}$unchecked
+							   |	public$tps $r $name($ps) $codeStr
 							   | """.stripMargin
-            }
+            }.bimap(codeNames ::: _, identity)
           }
         ) { (tps, ctors, methods) =>
           val parent = parents.lastOption.foldMap("extends " + _)
           s"""
 					   |${fmtDoc(doc)}
+					   |$generatedAnnotation
 					   |@SuppressWarnings("unused")
 					   |public class ${name.self}$tps $parent {
 					   |$ctors

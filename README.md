@@ -1,114 +1,165 @@
 MonacoFX
 ==========
 
-[![Build Status](https://travis-ci.org/tom91136/MonacoFX.svg?branch=master)](https://travis-ci.org/tom91136/MonacoFX)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Download](https://api.bintray.com/packages/tom91136/maven/monacofx/images/download.svg)](https://bintray.com/tom91136/maven/monacofx/_latestVersion)
 
-Embedded VisualStudioCode editor(monaco) for JavaFX.
- 
+Embedded Monaco (VS Code) editor for JavaFX, based on WebView and custom URL schemes handlers.
+
 Features
 
- * Fully configurable Java interfaces, no TypeScript/JavaScript required
+ * Fully typed Java interfaces generated directly from Monaco's TypeScript definitions
  * Works in Swing via JFXPanel
- * Mostly works in SceneBuilder*
+ * Bundled Monaco editor -- no external downloads at runtime
 
 Known limitations:
 
- * Java >= 11 is required as only JavaFX 11+ have a WebView that can correctly host the editor implementation        
- * Enabling ligatures have no effect as JavaFX's currently does not support [rendering ligatures](https://bugs.openjdk.java.net/browse/JDK-8091616)
+ * Java >= 17 and OpenJFX 22+ required
+ * Enabling ligatures has no effect as JavaFX currently does not support [rendering ligatures](https://bugs.openjdk.java.net/browse/JDK-8091616)
 
-## How to use
+## Project structure
 
-For Maven users, add the following to pom
-```xml
-<dependency>
-    <groupId>net.kurobako.monacofx</groupId>
-    <artifactId>monacofx</artifactId>
-    <version>0.1.0</version>
-</dependency>
 ```
-You also need to add jcenter repo to your pom:
-```xml
-<repositories>
-    <repository>
-        <id>jcenter</id>
-        <url>https://jcenter.bintray.com/</url>
-    </repository>
-</repositories>
+MonacoFX/
+  js-support/        -- JavaScript bridge layer (JsProxy, JsContext)
+  monacofx/          -- Core library: MonacoPane, generated Monaco API bindings
+  monacofx-sample/   -- Sample app with editor, diff, and JShell worksheet tabs
+  ambient2java/      -- Scala/SBT code generator: TypeDoc JSON -> Java sources
 ```
 
-For SBT
-```scala
-"net.kurobako.monacofx" % "monacofx" % "0.1.0"    
-```
-And also jcenter:
-```scala
-resolvers ++= Seq(Resolver.jcenterRepo)
-```
+## Prerequisites
 
-Alternatively, you can download the jar [here](https://dl.bintray.com/tom91136/maven/net/kurobako/monacofx/monacofx/0.1.0/monacofx-0.1.0.jar)
- and add it to your classpath. This library has no dependencies so you do not need to download 
-anything else.
- 
-Version history in available in [CHANGELOG.md](CHANGELOG.md)
-
-## Quick start
-
-// TODO 
-
-For more interesting examples, take a look at the [samples](monacofx-sample/src/main/java/net/kurobako/monacofx/sample).
-
-## Samples
-
-Several samples have been included demoing interesting uses of the gesture pane.
-
-You can download the sample jar [here](https://dl.bintray.com/tom91136/maven/net/kurobako/monacofx/monacofx-sample/0.2.0/monacofx-sample-0.2.0-jar-with-dependencies.jar) 
-or clone the project and run:
-
-    ./mvnw install
-    ./mvnw exec:java -pl monacofx-sample
+ * JDK 17+
+ * Maven (or use the included `./mvnw` wrapper)
 
 ## How to build
 
-Prerequisites:
+Build the entire project:
 
- * JDK 8 
+    ./mvnw clean package
 
-Clone the project and then in project root:
+This installs Node via `frontend-maven-plugin`, downloads Monaco from npm, and
+compiles everything. The Maven wrapper is included so you do not need Maven
+installed.
 
-    # *nix:
-    ./mvnw clean package 
-    # Windows:
-    mvnw clean package
+## Development workflow
 
-This project uses maven wrapper so you do not need to install maven
-beforehand.
+### 1. First-time setup / full rebuild
 
-For testing on new platforms, it is recommended to run tests headful. Add the headful flag to test
-with real window:
+    ./mvnw clean install
 
-    mvnw test -Dheadful
+This builds all modules in dependency order: `js-support` -> `monacofx` -> `monacofx-sample`.
 
-**NOTE: Be aware that running the tests headful will spawn actual windows and take over the mouse 
-and keyboard; you will see the test window flicker while different unit tests are invoked.**
+### 2. Re-generate Monaco Java bindings
 
-## Motivation
+The generated Monaco API sources live in `monacofx/target/generated-sources/monaco/`
+(not checked into git). To regenerate after changing the code generator or bumping
+the Monaco version:
 
-We currently have [RickTextFX](https://github.com/FXMisc/RichTextFX) but sometimes you just want a 
-quick and easy side-by-side diff view or perhaps a quick JSON editor embedded inside your app.
+    ./mvnw exec:exec@sync -pl monacofx
 
+This runs the SBT code generator under `ambient2java/` and copies the output.
+To run the code generator independently (useful for debugging):
+
+    cd ambient2java
+    sbt -Dmonaco.version=0.55.1 runMonacoConversion
+
+### 3. Compile after editing Java sources
+
+    ./mvnw compile
+
+### 4. Run the sample app
+
+    ./mvnw exec:java -pl monacofx-sample
+
+### 5. Run tests
+
+UI tests require a display (real or virtual via Xvfb):
+
+    DISPLAY=:0 ./mvnw test
+
+Tests are skipped automatically when no DISPLAY is set.
+
+### 6. Run integration tests (code generator)
+
+    cd ambient2java
+    sbt -Dmonaco.version=0.55.1 "it/test"
+
+These tests verify that the generated Java sources compile and pass type checks.
+Requires `js-support` to be built first (`./mvnw package -pl js-support`).
+
+### 7. Code formatting
+
+The project uses [Spotless](https://github.com/diffplug/spotless) with
+[Palantir Java Format](https://github.com/palantir/palantir-java-format) to
+enforce a consistent code style. Formatting is checked automatically during
+`mvn verify`.
+
+To auto-format all Java sources:
+
+    ./mvnw spotless:apply
+
+To check formatting without modifying files:
+
+    ./mvnw spotless:check
+
+### 8. Bump the Monaco version
+
+1. Update `<monaco.version>` in `pom.xml`
+2. Update `"monaco-editor"` version in `monacofx/package.json`
+3. Re-generate bindings: `./mvnw exec:exec@sync -pl monacofx`
+4. Fix any compilation errors in `monacofx/` or `monacofx-sample/`
+5. Run integration tests to verify
+
+## Release process
+
+1. Commit all changes before release
+2. Make sure `~/.m2/settings.xml` has the Sonatype OSSRH credentials:
+
+    ```xml
+    <server>
+      <id>ossrh</id>
+      <username>your-sonatype-username</username>
+      <password>your-sonatype-password</password>
+    </server>
+    ```
+
+   Also ensure the machine has a GPG key configured for artifact signing and
+   SSH access to GitHub for pushing tags.
+
+3. Dry run:
+
+       ./mvnw release:prepare -DdryRun=true -Darguments=-DskipTests
+
+4. Clean up the dry run:
+
+       ./mvnw release:clean
+
+5. Prepare the release (tags and bumps the version):
+
+       ./mvnw release:prepare -Darguments=-DskipTests
+
+6. Inspect the commits, then push:
+
+       git push && git push --tags
+
+7. Perform the release (builds, signs, uploads to Sonatype):
+
+       ./mvnw clean release:perform -Darguments=-DskipTests
+
+8. Complete the release by closing and releasing the staging repository:
+
+       cd target/checkout && ./mvnw nexus-staging:release
 
 ## Licence
 
-    Copyright 2018 WEI CHEN LIN
-    
+    Copyright 2024 WeiChen Lin
+
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-    
+
        http://www.apache.org/licenses/LICENSE-2.0
-    
+
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.

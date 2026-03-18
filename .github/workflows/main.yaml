@@ -1,0 +1,145 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [ '21', '22', '23', '24', '25' ]
+        javafx: [ '22.0.2', '23.0.2', '24.0.2', '25.0.2' ]
+        exclude:
+          # JavaFX N requires JDK >= N-2
+          - { java: '21', javafx: '24.0.2' }
+          - { java: '21', javafx: '25.0.2' }
+          - { java: '22', javafx: '25.0.2' }
+    name: JDK ${{ matrix.java }} / JavaFX ${{ matrix.javafx }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ matrix.java }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ matrix.java }}
+          cache: 'maven'
+
+      - name: Install xvfb, JavaFX dependencies, and sbt
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb libgtk-3-0 libgl1 apt-transport-https > /dev/null
+          echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
+          curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo apt-key add -
+          sudo apt-get update -qq && sudo apt-get install -y -qq sbt > /dev/null
+
+      - name: Resolve dependencies
+        run: ./mvnw -B dependency:go-offline -Djavafx.version=${{ matrix.javafx }} -q
+
+      - name: Build
+        run: ./mvnw -B clean package -DskipTests -Djavafx.version=${{ matrix.javafx }}
+
+      - name: Test
+        env:
+          DISPLAY: ':99'
+        run: |
+          Xvfb :99 -screen 0 1024x768x24 -ac &
+          sleep 1
+          ./mvnw -B verify -Djavafx.version=${{ matrix.javafx }}
+
+      - name: Upload library jars
+        if: github.event_name == 'push' && !env.ACT
+        uses: actions/upload-artifact@v4
+        with:
+          name: monacofx-jdk${{ matrix.java }}-javafx${{ matrix.javafx }}
+          path: |
+            js-support/target/js-support-*.jar
+            monacofx/target/monacofx-*.jar
+            !**/*-sources.jar
+            !**/*-javadoc.jar
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+
+      - name: Install sbt
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq apt-transport-https > /dev/null
+          echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
+          curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo apt-key add -
+          sudo apt-get update -qq && sudo apt-get install -y -qq sbt > /dev/null
+
+      - name: Build sample uberjar
+        run: |
+          ./mvnw -B clean package -DskipTests -Djavafx.version=22.0.2
+          cp monacofx-sample/target/monacofx-sample-*-jar-with-dependencies.jar \
+             monacofx-sample.jar
+
+      - name: Build sample app-image (jpackage)
+        run: |
+          jpackage \
+            --type app-image \
+            --name MonacoFX-Sample \
+            --input monacofx-sample/target \
+            --main-jar monacofx-sample-*-jar-with-dependencies.jar \
+            --main-class net.kurobako.monacofx.sample.Main \
+            --java-options '--add-exports javafx.web/com.sun.javafx.webkit=ALL-UNNAMED' \
+            --dest jpackage-out
+          tar -czf monacofx-sample-linux-x64.tar.gz -C jpackage-out MonacoFX-Sample
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            monacofx-sample.jar
+            monacofx-sample-linux-x64.tar.gz
+          generate_release_notes: true
+          body: |
+            ## MonacoFX ${{ steps.version.outputs.version }}
+
+            ### Downloads
+
+            - **`monacofx-sample.jar`** — cross-platform uberjar, run with `java --add-exports javafx.web/com.sun.javafx.webkit=ALL-UNNAMED -jar monacofx-sample.jar` (requires JDK 21+)
+            - **`monacofx-sample-linux-x64.tar.gz`** — self-contained Linux app image (bundled JDK, no install needed)
+
+            ### Maven
+
+            ```xml
+            <dependency>
+                <groupId>net.kurobako</groupId>
+                <artifactId>monacofx</artifactId>
+                <version>${{ steps.version.outputs.version }}</version>
+            </dependency>
+            ```
+
+            ### sbt
+
+            ```scala
+            libraryDependencies += "net.kurobako" % "monacofx" % "${{ steps.version.outputs.version }}"
+            ```

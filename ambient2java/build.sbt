@@ -9,12 +9,10 @@ lazy val generateTypedocJson  = taskKey[File]("Generate TypeDoc JSON from Monaco
 lazy val runMonacoConversion  = taskKey[File]("Run Monaco type conversion to generate Java sources")
 
 lazy val ambient2java = (project in file("."))
-	.configs(IntegrationTest)
 	.settings(
-		Defaults.itSettings,
 		name := "ambient2java",
 		version := "0.1",
-		scalaVersion := "3.7.1",
+		scalaVersion := "3.8.2",
 		javacOptions ++= Seq(
 			"-parameters",
 			"-Xlint:all",
@@ -35,13 +33,8 @@ lazy val ambient2java = (project in file("."))
 			"-Wconf:name=PatternMatchExhaustivity:error", //
 			"-language:noAutoTupling",
 			"-source",
-			"3.7"
+			"3.8"
 		),
-		//		scalacOptions ++= Seq(
-		//			"-opt-inline-from:**",
-		//			"-opt:-l:none,_",
-		//			"-opt-warnings:-none,_"
-		//		),
 		libraryDependencies ++= Seq(
 			"com.google.code.findbugs" % "jsr305" % "3.0.2",
 
@@ -50,42 +43,24 @@ lazy val ambient2java = (project in file("."))
 			"org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0",
 
 			"com.github.pathikrit" %% "better-files" % "3.9.2",
-			//			"com.lihaoyi" %% "fastparse" % "2.2.2",
-			"com.lihaoyi" %% "pprint" % "0.9.3",
-			"com.lihaoyi" %% "upickle" % "4.2.1",
-//			"org.jsoup" % "jsoup" % "1.21.1",
-			//			"eu.timepit" %% "refined" % "0.9.14",
-			//			"eu.timepit" %% "refined-cats" % "0.9.14",
+			"com.lihaoyi" %% "pprint" % "0.9.6",
+			"com.lihaoyi" %% "upickle" % "4.4.3",
 			"org.typelevel" %% "cats-core" % "2.13.0",
-			"org.typelevel" %% "mouse" % "1.3.2",
+			"org.typelevel" %% "mouse" % "1.4.0",
 			"org.typelevel" %% "kittens" % "3.5.0",
-
-			"org.scalameta" %% "munit" % "1.0.4" % IntegrationTest,
 		),
 
-		monacoVersion := "0.20.0",
-		resolvers += Resolver.mavenLocal,
-		libraryDependencies += "net.kurobako" % "monacofx-js" % "0.1.0-SNAPSHOT" % IntegrationTest,
-
-		IntegrationTest / fork := true,
-
-		IntegrationTest / javaOptions ++= {
-			val cp = (IntegrationTest / fullClasspath).value.files.mkString(java.io.File.pathSeparator)
-			Seq(
-				s"-Dproject.dir=${baseDirectory.value.getAbsolutePath}",
-				s"-Dtarget.dir=${target.value.getAbsolutePath}",
-				s"-Dtest.classpath=$cp"
-			)
-		},
+		monacoVersion := sys.props.getOrElse("monaco.version", ""),
 
 		downloadMonacoTypes := {
 			val log     = streams.value.log
 			val version = monacoVersion.value
+			if (version.isEmpty) sys.error("Set -Dmonaco.version=<ver> (e.g. sbt -Dmonaco.version=0.55.1 runMonacoConversion)")
 			val workDir = target.value / "monaco-download"
 			IO.createDirectory(workDir)
 			IO.write(
 				workDir / "package.json",
-				"""{"name":"monaco-download","version":"1.0.0","private":true}"""
+				"""{"name":"monaco-editor","version":"1.0.0","private":true}"""
 			)
 			log.info(s"Installing monaco-editor@$version into $workDir")
 			val rc = Process(Seq("npm", "install", s"monaco-editor@$version", "--no-save"), workDir) ! log
@@ -102,7 +77,7 @@ lazy val ambient2java = (project in file("."))
 			val log        = streams.value.log
 			val dtsFile    = downloadMonacoTypes.value
 			val workDir    = target.value / "monaco-download"
-			val outputJson = workDir / "typedoc.json"
+			val outputJson = workDir / "typedoc-out.json"
 			val stampFile  = workDir / ".typedoc-version"
 			val version    = monacoVersion.value
 
@@ -114,29 +89,46 @@ lazy val ambient2java = (project in file("."))
 			}
 
 			if (!outputJson.exists()) {
-				log.info(s"Installing typedoc@0.16.11, typescript@3.9.7, and monaco-editor@$version into $workDir")
+				log.info(s"Installing typedoc@0.28.17, typescript@5.6.3, and monaco-editor@$version into $workDir")
 				val installRc = Process(
-					Seq("npm", "install", "typedoc@0.16.11", "typescript@3.9.7", s"monaco-editor@$version", "--no-save"),
+					Seq("npm", "install", "typedoc@0.28.17", "typescript@5.6.3", s"monaco-editor@$version", "--no-save"),
 					workDir
 				) ! log
 				if (installRc != 0) {
 					log.warn(s"typedoc/typescript installation failed with exit code $installRc")
 				} else {
+					// Monaco 0.55+ bundles its .d.ts with top-level declarations (IPosition,
+					// IRange, etc.) that are re-exported via type aliases through editor_main.
+					// TypeDoc only documents exported symbols, so these top-level declarations
+					// are treated as external and their full definitions are lost.  Fix: use a
+					// Node.js script (TypeScript compiler API) to extract top-level names and
+					// append `export { ... }` so TypeDoc documents them with full children.
+					val patchedDts = workDir / "monaco-patched.d.ts"
+					val exportScript = baseDirectory.value / "export-toplevel.mjs"
+					log.info(s"Patching $dtsFile -> $patchedDts (exporting top-level declarations for TypeDoc)")
+					val patchRc = Process(
+						Seq("node", exportScript.getAbsolutePath, dtsFile.getAbsolutePath, patchedDts.getAbsolutePath),
+						workDir
+					) ! log
+					if (patchRc != 0) sys.error(s"export-toplevel.mjs failed with exit code $patchRc")
+
+					IO.write(
+						workDir / "tsconfig.json",
+						s"""{"compilerOptions":{"target":"ES2020","lib":["ES2020","DOM"],"skipLibCheck":true,"noEmit":true},"files":["${patchedDts.getAbsolutePath}"]}"""
+					)
 					val typedocBin = workDir / "node_modules" / ".bin" / "typedoc"
-					log.info(s"Running typedoc@0.16.11 on monaco-editor@$version to generate $outputJson")
+					log.info(s"Running typedoc@0.28.17 on monaco-editor@$version to generate $outputJson")
 					val rc = Process(
 						Seq(
 							typedocBin.getAbsolutePath,
-							"--json",                outputJson.getAbsolutePath,
-							"--mode",                "file",
-							"--excludeExternals",
-							"--includeDeclarations",
-							dtsFile.getAbsolutePath
+							"--json",               outputJson.getAbsolutePath,
+							"--entryPoints",        patchedDts.getAbsolutePath,
+							"--skipErrorChecking"
 						),
 						workDir
 					) ! log
 					if (rc != 0)
-						log.warn(s"typedoc exited with $rc — typedoc.json may not have been generated (expected for newer Monaco)")
+						log.warn(s"typedoc exited with $rc --typedoc.json may not have been generated (expected for newer Monaco)")
 					else
 						IO.write(stampFile, version)
 				}
@@ -151,15 +143,17 @@ lazy val ambient2java = (project in file("."))
 			val jsonFile  = generateTypedocJson.value
 			val dtsFile   = downloadMonacoTypes.value
 			val outputDir = target.value / "monaco-generated"
+			val r         = (Compile / runner).value
+			val cp        = (Compile / fullClasspath).value.files
 			IO.createDirectory(outputDir)
 			if (jsonFile.exists()) {
 				log.info(s"Running TsToJavaAst conversion: $jsonFile -> $outputDir")
 				try {
-					val result = (Compile / runner).value.run(
+					val result = r.run(
 						"net.kurobako.monaco.TsToJavaAst",
-						(Compile / fullClasspath).value.files,
+						cp,
 						Seq(jsonFile.getAbsolutePath, dtsFile.getAbsolutePath, outputDir.getAbsolutePath),
-						streams.value.log
+						log
 					)
 					result.failed.foreach(e => log.warn(s"Conversion failed (expected for newer Monaco): ${e.getMessage}"))
 				} catch {
@@ -171,8 +165,33 @@ lazy val ambient2java = (project in file("."))
 			}
 			outputDir
 		},
-
-		IntegrationTest / test := ((IntegrationTest / test) dependsOn runMonacoConversion).value,
 	)
 
-
+lazy val it = (project in file("it"))
+	.dependsOn(ambient2java)
+	.settings(
+		name := "ambient2java-it",
+		publish / skip := true,
+		scalaVersion := "3.8.2",
+		// Point test sources at the existing src/it/scala directory
+		Test / scalaSource := baseDirectory.value / ".." / "src" / "it" / "scala",
+		fork := true,
+		Test / javaOptions ++= {
+			val cp = (Test / fullClasspath).value.files.mkString(java.io.File.pathSeparator)
+			Seq(
+				s"-Dtarget.dir=${(ambient2java / target).value.getAbsolutePath}",
+				s"-Dtest.classpath=$cp"
+			)
+		},
+		libraryDependencies ++= Seq(
+			"org.scalameta" %% "munit" % "1.2.4",
+		),
+		Test / unmanagedJars ++= {
+			val jsTargetDir = baseDirectory.value / ".." / ".." / "js-support" / "target"
+			val jars = (jsTargetDir * "js-support-*.jar").get
+			if (jars.isEmpty) sys.error(s"No js-support jar found in $jsTargetDir --run 'mvn package -pl js-support' first")
+			jars.map(Attributed.blank)
+		},
+		libraryDependencies += "org.openjfx" % "javafx-web" % "22.0.1" % Test,
+		Test / test := ((Test / test) dependsOn (ambient2java / runMonacoConversion)).value,
+	)

@@ -1,9 +1,7 @@
 package net.kurobako
 
-import cats.data.NonEmptyList
-import cats.data.NonEmptyVector
-import cats.data.ValidatedNel
-import cats.syntax.all._
+import cats.data.{NonEmptyList, NonEmptyVector, ValidatedNel}
+import cats.syntax.all.*
 
 package object monaco {
 
@@ -47,14 +45,6 @@ package object monaco {
       e.toList.foreach(ex.addSuppressed(_))
       NonEmptyList.one(ex)
     }
-  }
-
-  def crossJoinNev[A](list: Nel[Nel[A]]): Nel[Nel[A]] = list match {
-    case Nel(xs, Nil)     => xs.map(Nel.one(_))
-    case Nel(xs, y :: ys) => for {
-        i <- xs
-        j <- crossJoinNev(NonEmptyList(y, ys))
-      } yield Nel.one(i) ::: j
   }
 
   def crossJoin[A](list: List[List[A]]): List[List[A]] = list match {

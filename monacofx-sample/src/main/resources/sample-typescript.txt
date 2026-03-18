@@ -1,0 +1,84 @@
+class Cell {
+    row: number;
+    col: number;
+    live: boolean;
+
+    constructor(row: number, col: number, live: boolean) {
+        this.row = row;
+        this.col = col;
+        this.live = live;
+    }
+}
+
+class GameOfLife {
+    private gridSize = 50;
+    private canvasSize = 600;
+    private livingColor = "#666";
+    private deadColor = "#eee";
+    private world: Cell[][] = [];
+    private canvas: HTMLCanvasElement;
+    private ctx2d: CanvasRenderingContext2D;
+
+    constructor() {
+        this.canvas = document.getElementById("canvas") as HTMLCanvasElement
+            ?? Object.assign(document.createElement("canvas"), {
+                width: this.canvasSize,
+                height: this.canvasSize,
+            });
+        this.ctx2d = this.canvas.getContext("2d")!;
+        document.body.appendChild(this.canvas);
+    }
+
+    circleOfLife(): void {
+        this.world = this.createWorld();
+        setInterval(() => {
+            this.world = this.resolveNextGeneration(this.world);
+            this.updateCanvas(this.world);
+        }, 60);
+    }
+
+    private createWorld(): Cell[][] {
+        return this.travelWorld(cell => {
+            cell.live = Math.random() > 0.5;
+            return cell;
+        });
+    }
+
+    private resolveNextGeneration(world: Cell[][]): Cell[][] {
+        return this.travelWorld(cell => {
+            const neighbors = this.countLiveNeighbors(world, cell.row, cell.col);
+            cell.live = cell.live
+                ? neighbors === 2 || neighbors === 3
+                : neighbors === 3;
+            return cell;
+        });
+    }
+
+    private travelWorld(callback: (cell: Cell) => Cell): Cell[][] {
+        return Array.from({ length: this.gridSize }, (_, r) =>
+            Array.from({ length: this.gridSize }, (_, c) =>
+                callback(new Cell(r, c, false))
+            )
+        );
+    }
+
+    private countLiveNeighbors(world: Cell[][], row: number, col: number): number {
+        const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+        return dirs.reduce((count, [dr, dc]) => {
+            const nr = (row + dr + this.gridSize) % this.gridSize;
+            const nc = (col + dc + this.gridSize) % this.gridSize;
+            return count + (world[nr][nc].live ? 1 : 0);
+        }, 0);
+    }
+
+    private updateCanvas(world: Cell[][]): void {
+        const size = this.canvasSize / this.gridSize;
+        this.travelWorld(cell => {
+            this.ctx2d.fillStyle = cell.live ? this.livingColor : this.deadColor;
+            this.ctx2d.fillRect(cell.col * size, cell.row * size, size - 1, size - 1);
+            return cell;
+        });
+    }
+}
+
+new GameOfLife().circleOfLife();

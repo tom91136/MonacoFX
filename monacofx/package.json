@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "license": "MIT",
     "dependencies": {
-        "monaco-editor": "latest",
+        "monaco-editor": "0.55.1",
         "requirejs": "2.3.7",
         "typescript": "latest"
     }

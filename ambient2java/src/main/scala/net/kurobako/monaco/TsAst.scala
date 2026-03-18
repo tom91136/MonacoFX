@@ -1,21 +1,13 @@
 package net.kurobako.monaco
 
-import scala.collection.immutable.ArraySeq
-
-import cats.Applicative
-import cats.Eval
-import cats.Monad
-import cats.Monoid
-import cats.Show
-import cats.Traverse
+import cats.{Monad, Monoid, Traverse}
 import cats.derived.*
-import cats.syntax.all._
-import mouse.all._
-import net.kurobako.monaco.Ast.Name
-import net.kurobako.monaco.Ast.Sym
-import net.kurobako.monaco.TsAst.TsAccessor
+import cats.syntax.all.*
+import mouse.all.*
+import net.kurobako.monaco.Ast.{Name, Sym}
 import net.kurobako.monaco.TypeDoc.ReflectionFlag
-import net.kurobako.monaco.TypeDoc.ReflectionKind
+
+import scala.collection.immutable.ArraySeq
 
 object TsAst {
 
@@ -53,7 +45,7 @@ object TsAst {
         case TsGeneric(tpe, bounds) => TsGeneric(flatMap(tpe)(f), bounds.map(flatMap(_)(f)))
       }
       override def tailRecM[A, B](a: A)(f: A => TsType[Either[A, B]]): TsType[B] =
-        // FIXME provide a stack-safe imp.
+        // XXX FIXME not stack-safe
         flatMap(f(a)) {
           case Right(b) => pure(b)
           case Left(a)  => tailRecM(a)(f)
@@ -75,7 +67,6 @@ object TsAst {
   case class Meta(
       id: Int,
       name: Sym,
-      kind: ReflectionKind,
       flags: Set[ReflectionFlag],
       sources: List[Source],
       comment: Option[Comment]
@@ -90,7 +81,6 @@ object TsAst {
     )
 
   }
-
 
   case class TsParameter[+A](
       name: Sym,
@@ -153,7 +143,7 @@ object TsAst {
       functions: List[TsFunction[A]],
       variables: List[TsVariable[A]],
       aliases: List[TsTypeAlias[A]],
-      // TODO events are functions
+      // XXX TODO events are functions
       enums: List[TsEnum[A]],
       classes: List[TsClass[A]],
       interfaces: List[TsInterface[A]],
@@ -204,7 +194,8 @@ object TsAst {
       typeParams: List[(Sym, Option[A])],
       methods: List[TsMethod[A]],
       properties: List[TsProperty[A]],
-      doc: Doc
+      doc: Doc,
+      callSignatures: List[TsSignature[A]] = Nil
   ) extends TopLevelElem with ClassLike[A] derives Traverse
 
 }

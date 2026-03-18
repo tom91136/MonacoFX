@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Hyperlink?>
+<?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
 
 <VBox fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="800.0" prefWidth="1000.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.kurobako.monacofx.sample.SamplerController">
    <children>
@@ -18,7 +22,15 @@
                         <Image url="@github_icon.png" />
                      </image>
                   </ImageView>
-               </graphic></Hyperlink>
+               </graphic>
+            </Hyperlink>
+            <Pane HBox.hgrow="ALWAYS" />
+            <Label text="Scrolling:" />
+            <ComboBox fx:id="scrollBox" />
+            <Label text="Monaco theme:" />
+            <ComboBox fx:id="themeBox" />
+            <Label text="UI theme:" />
+            <ComboBox fx:id="uiThemeBox" />
         </items>
       </ToolBar>
       <TabPane fx:id="tabs" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS" />

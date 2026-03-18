@@ -6,7 +6,7 @@
     <parent>
         <artifactId>monacofx-parent</artifactId>
         <groupId>net.kurobako</groupId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>0.55.1-0</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
@@ -17,17 +17,14 @@
 
         <dependency>
             <groupId>net.kurobako</groupId>
-            <artifactId>monacofx-js</artifactId>
+            <artifactId>js-support</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-web</artifactId>
-            <version>${javafx.version}</version>
         </dependency>
-
-
         <dependency>
             <groupId>org.unbescape</groupId>
             <artifactId>unbescape</artifactId>
@@ -36,45 +33,22 @@
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>jsr305</artifactId>
-            <version>3.0.2</version>
         </dependency>
-
-
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <version>5.11.4</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>5.14.2</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.27.3</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.testfx</groupId>
-            <artifactId>testfx-core</artifactId>
-            <version>4.0.13-alpha</version>
-            <scope>test</scope>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.testfx</groupId>
-            <artifactId>testfx-junit</artifactId>
-            <version>4.0.13-alpha</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testfx</groupId>
-            <artifactId>openjfx-monocle</artifactId>
-            <version>8u76-b04</version>
-            <scope>test</scope>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
         </dependency>
     </dependencies>
     <build>
@@ -83,23 +57,21 @@
             <plugin>
                 <groupId>com.github.eirslett</groupId>
                 <artifactId>frontend-maven-plugin</artifactId>
-                <version>1.15.0</version>
                 <configuration>
                     <nodeVersion>v20.18.3</nodeVersion>
-                    <yarnVersion>v1.22.22</yarnVersion>
                 </configuration>
                 <executions>
                     <execution>
-                        <id>install node and yarn</id>
+                        <id>install node</id>
                         <goals>
-                            <goal>install-node-and-yarn</goal>
+                            <goal>install-node-and-npm</goal>
                         </goals>
                         <phase>generate-resources</phase>
                     </execution>
                     <execution>
-                        <id>yarn install</id>
+                        <id>npm install</id>
                         <goals>
-                            <goal>yarn</goal>
+                            <goal>npm</goal>
                         </goals>
                         <configuration>
                             <arguments>install</arguments>
@@ -111,7 +83,6 @@
 
             <plugin>
                 <artifactId>maven-resources-plugin</artifactId>
-                <version>3.3.1</version>
                 <executions>
                     <execution>
                         <id>copy-resources</id>
@@ -120,7 +91,7 @@
                             <goal>copy-resources</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${basedir}/src/main/resources/vendor</outputDirectory>
+                            <outputDirectory>${project.build.outputDirectory}/vendor</outputDirectory>
                             <resources>
                                 <resource>
                                     <directory>node_modules/requirejs</directory>
@@ -140,7 +111,6 @@
 
             <plugin>
                 <artifactId>maven-clean-plugin</artifactId>
-                <version>3.4.0</version>
                 <configuration>
                     <filesets>
                         <fileset>
@@ -151,24 +121,77 @@
                             <directory>node</directory>
                             <followSymlinks>false</followSymlinks>
                         </fileset>
-                        <fileset>
-                            <directory>${basedir}/src/main/resources/vendor</directory>
-                            <followSymlinks>false</followSymlinks>
-                        </fileset>
                     </filesets>
                 </configuration>
             </plugin>
 
             <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <source>11</source>
-                    <target>11</target>
-                    <compilerArgument>-Xlint:all</compilerArgument>
-                    <showWarnings>true</showWarnings>
-                    <showDeprecation>true</showDeprecation>
+                    <forkCount>1</forkCount>
+                    <reuseForks>false</reuseForks>
+                    <forkedProcessExitTimeoutInSeconds>5</forkedProcessExitTimeoutInSeconds>
+                    <argLine>
+                        @{argLine}
+                        --add-exports javafx.web/com.sun.javafx.webkit=ALL-UNNAMED
+                        -Dprism.order=sw
+                        -Dprism.verbose=true
+                    </argLine>
                 </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>add-monaco-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals><goal>add-source</goal></goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources/monaco</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>sync</id>
+                        <phase>generate-sources</phase>
+                        <goals><goal>exec</goal></goals>
+                        <configuration>
+                            <executable>bash</executable>
+                            <workingDirectory>${project.basedir}/../ambient2java</workingDirectory>
+                            <arguments>
+                                <argument>-c</argument>
+                                <argument>
+                                    set -e
+                                    if ! command -v sbt &amp;>/dev/null; then
+                                      echo "=== sbt not found, skipping code generation (using committed sources) ==="
+                                      exit 0
+                                    fi
+                                    SBT_CMD="sbt -Dmonaco.version=${monaco.version} runMonacoConversion"
+                                    echo "=== Running ambient2java: runMonacoConversion ==="
+                                    echo "  To run independently: cd $(pwd) &amp;&amp; $SBT_CMD"
+                                    $SBT_CMD
+                                    echo "=== Syncing generated sources to monacofx ==="
+                                    DEST=${project.build.directory}/generated-sources/monaco/monaco_editor
+                                    SRC=target/monaco-generated/monaco_editor
+                                    mkdir -p "$(dirname "$DEST")"
+                                    rm -rf "$DEST"
+                                    cp -r "$SRC" "$DEST"
+                                    echo "=== Sync complete: $SRC -> $DEST ==="
+                                </argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
