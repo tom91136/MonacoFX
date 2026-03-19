@@ -19,6 +19,9 @@
         <github.repo>MonacoFX</github.repo>
         <javafx.version>22.0.1</javafx.version>
         <monaco.version>0.55.1</monaco.version>
+        <typescript.version>5.6.3</typescript.version>
+        <typedoc.version>0.28.17</typedoc.version>
+        <requirejs.version>2.3.7</requirejs.version>
     </properties>
 
     <modules>
@@ -78,6 +81,49 @@
 
 
     <profiles>
+        <profile>
+            <id>os-unix</id>
+            <activation>
+                <os><family>unix</family></os>
+            </activation>
+            <properties>
+                <script.executable>bash</script.executable>
+                <script.flag>-c</script.flag>
+                <script.inline><![CDATA[
+set -e
+cd "${0}"
+if [ ! -f "ambient2java/sbt" ]; then
+  echo "=== sbt wrapper not found, skipping code generation (using committed sources) ==="
+  exit 0
+fi
+echo "=== Running ambient2java: TsToJavaAst ==="
+cd ambient2java
+./sbt "runMain net.kurobako.monaco.TsToJavaAst ${1} ${2} ${3}"
+echo "=== Code generation complete ==="
+]]></script.inline>
+            </properties>
+        </profile>
+        <profile>
+            <id>os-windows</id>
+            <activation>
+                <os><family>windows</family></os>
+            </activation>
+            <properties>
+                <script.executable>cmd</script.executable>
+                <script.flag>/c</script.flag>
+                <script.inline><![CDATA[
+cd /d "%~1" &&
+if not exist "ambient2java\sbt.bat" (
+  echo === sbt wrapper not found, skipping code generation (using committed sources) ===
+  exit /b 0
+) &&
+echo === Running ambient2java: TsToJavaAst === &&
+cd ambient2java &&
+call sbt.bat "runMain net.kurobako.monaco.TsToJavaAst %~2 %~3 %~4" &&
+echo === Code generation complete ===
+]]></script.inline>
+            </properties>
+        </profile>
         <profile>
             <id>release</id>
             <build>

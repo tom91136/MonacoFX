@@ -2,25 +2,28 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-
     <parent>
         <artifactId>monacofx-parent</artifactId>
         <groupId>net.kurobako</groupId>
         <version>0.55.1-0</version>
     </parent>
-
     <modelVersion>4.0.0</modelVersion>
     <packaging>jar</packaging>
     <artifactId>monacofx</artifactId>
-
+    <properties>
+        <typedoc.dir>${project.build.directory}/typedoc</typedoc.dir>
+        <monaco.dts>${project.basedir}/node_modules/monaco-editor/monaco.d.ts</monaco.dts>
+        <typedoc.json>${typedoc.dir}/typedoc-out.json</typedoc.json>
+        <monaco.patched.dts>${typedoc.dir}/monaco-patched.d.ts</monaco.patched.dts>
+        <monaco.generated.dir>${project.build.directory}/generated-sources/monaco/monaco_editor
+        </monaco.generated.dir>
+    </properties>
     <dependencies>
-
         <dependency>
             <groupId>net.kurobako</groupId>
             <artifactId>js-support</artifactId>
             <version>${project.version}</version>
         </dependency>
-
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-web</artifactId>
@@ -53,34 +56,80 @@
     </dependencies>
     <build>
         <plugins>
-
             <plugin>
-                <groupId>com.github.eirslett</groupId>
-                <artifactId>frontend-maven-plugin</artifactId>
-                <configuration>
-                    <nodeVersion>v20.18.3</nodeVersion>
-                </configuration>
+                <artifactId>maven-antrun-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>install node</id>
+                        <id>prepare-typedoc</id>
+                        <phase>initialize</phase>
                         <goals>
-                            <goal>install-node-and-npm</goal>
-                        </goals>
-                        <phase>generate-resources</phase>
-                    </execution>
-                    <execution>
-                        <id>npm install</id>
-                        <goals>
-                            <goal>npm</goal>
+                            <goal>run</goal>
                         </goals>
                         <configuration>
-                            <arguments>install</arguments>
+                            <target>
+                                <mkdir dir="${typedoc.dir}" />
+                                <echo file="${typedoc.dir}/tsconfig.json">
+                                    <![CDATA[{"compilerOptions":{"target":"ES2020","lib":["ES2020","DOM"],"skipLibCheck":true,"noEmit":true},"files":["${monaco.patched.dts}"]}]]></echo>
+                            </target>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
-
-
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <configuration>
+                    <nodeVersion>v22.14.0</nodeVersion>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>install node</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>install-node-and-npm</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>npm install</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>install --save-exact monaco-editor@${monaco.version}
+                                requirejs@${requirejs.version} typescript@${typescript.version}
+                                typedoc@${typedoc.version}
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>patch-dts</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>npx</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>--yes node
+                                ${project.basedir}/export-toplevel.mjs ${monaco.dts}
+                                ${monaco.patched.dts}
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>generate-typedoc-json</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>npx</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>typedoc --json ${typedoc.json} --entryPoints
+                                ${monaco.patched.dts} --skipErrorChecking --tsconfig
+                                ${typedoc.dir}/tsconfig.json
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <artifactId>maven-resources-plugin</artifactId>
                 <executions>
@@ -91,7 +140,8 @@
                             <goal>copy-resources</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${project.build.outputDirectory}/vendor</outputDirectory>
+                            <outputDirectory>${project.build.outputDirectory}/vendor
+                            </outputDirectory>
                             <resources>
                                 <resource>
                                     <directory>node_modules/requirejs</directory>
@@ -107,8 +157,6 @@
                     </execution>
                 </executions>
             </plugin>
-
-
             <plugin>
                 <artifactId>maven-clean-plugin</artifactId>
                 <configuration>
@@ -124,7 +172,6 @@
                     </filesets>
                 </configuration>
             </plugin>
-
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
@@ -139,7 +186,6 @@
                     </argLine>
                 </configuration>
             </plugin>
-
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
@@ -147,7 +193,9 @@
                     <execution>
                         <id>add-monaco-sources</id>
                         <phase>generate-sources</phase>
-                        <goals><goal>add-source</goal></goals>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
                         <configuration>
                             <sources>
                                 <source>${project.build.directory}/generated-sources/monaco</source>
@@ -156,38 +204,25 @@
                     </execution>
                 </executions>
             </plugin>
-
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>sync</id>
+                        <id>ambient2java</id>
                         <phase>generate-sources</phase>
-                        <goals><goal>exec</goal></goals>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
                         <configuration>
-                            <executable>bash</executable>
-                            <workingDirectory>${project.basedir}/../ambient2java</workingDirectory>
+                            <executable>${script.executable}</executable>
                             <arguments>
-                                <argument>-c</argument>
-                                <argument>
-                                    set -e
-                                    if ! command -v sbt &amp;>/dev/null; then
-                                      echo "=== sbt not found, skipping code generation (using committed sources) ==="
-                                      exit 0
-                                    fi
-                                    SBT_CMD="sbt -Dmonaco.version=${monaco.version} runMonacoConversion"
-                                    echo "=== Running ambient2java: runMonacoConversion ==="
-                                    echo "  To run independently: cd $(pwd) &amp;&amp; $SBT_CMD"
-                                    $SBT_CMD
-                                    echo "=== Syncing generated sources to monacofx ==="
-                                    DEST=${project.build.directory}/generated-sources/monaco/monaco_editor
-                                    SRC=target/monaco-generated/monaco_editor
-                                    mkdir -p "$(dirname "$DEST")"
-                                    rm -rf "$DEST"
-                                    cp -r "$SRC" "$DEST"
-                                    echo "=== Sync complete: $SRC -> $DEST ==="
-                                </argument>
+                                <argument>${script.flag}</argument>
+                                <argument>${script.inline}</argument>
+                                <argument>${project.basedir}/..</argument>
+                                <argument>${typedoc.json}</argument>
+                                <argument>${monaco.dts}</argument>
+                                <argument>${monaco.generated.dir}</argument>
                             </arguments>
                         </configuration>
                     </execution>
@@ -195,5 +230,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>
