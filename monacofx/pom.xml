@@ -185,24 +185,19 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
                 <executions>
                     <execution>
                         <id>ambient2java</id>
                         <phase>generate-sources</phase>
                         <goals>
-                            <goal>exec</goal>
+                            <goal>npx</goal>
                         </goals>
                         <configuration>
-                            <executable>${script.executable}</executable>
-                            <arguments>
-                                <argument>${script.flag}</argument>
-                                <argument>${script.inline}</argument>
-                                <argument>${project.basedir}/..</argument>
-                                <argument>${typedoc.json}</argument>
-                                <argument>${monaco.dts}</argument>
-                                <argument>${monaco.generated.dir}</argument>
+                            <arguments>--yes node ${project.basedir}/run-ambient2java.mjs
+                                ${project.basedir}/.. ${typedoc.json} ${monaco.dts}
+                                ${monaco.generated.dir}
                             </arguments>
                         </configuration>
                     </execution>
