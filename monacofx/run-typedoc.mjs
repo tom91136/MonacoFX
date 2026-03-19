@@ -21,10 +21,11 @@ writeFileSync(tsconfig, JSON.stringify({
   files: [p(entryPoint)]
 }));
 
-const typedocBin = resolve("node_modules/.bin/typedoc");
+// Resolve typedoc's actual JS entry point (node_modules/.bin/typedoc is a bash script on Windows)
+const typedocMain = resolve("node_modules/typedoc/bin/typedoc");
 
 execFileSync(process.execPath, [
-  typedocBin,
+  typedocMain,
   "--json", p(jsonOut),
   "--entryPoints", p(entryPoint),
   "--skipErrorChecking",
