@@ -93,11 +93,11 @@ public class MonacoPane extends StackPane {
         }
     }
 
-    private final ObjectProperty<MonacoContext> editor = new SimpleObjectProperty<>(null);
-    /** Prevents GC of the context and its callbacks between page load and the async Monaco bridge callback. */
     @SuppressWarnings("unused")
     private volatile MonacoContext pendingCtx;
-    /** Number of lines to scroll per wheel notch. Default is {@code 5}. */
+
+    private final ObjectProperty<MonacoContext> editor = new SimpleObjectProperty<>(null);
+    private final WebView webView;
     private final IntegerProperty scrollDeltaLines = new SimpleIntegerProperty(5);
 
     /** Returns the context once Monaco has loaded, or {@code null} if not yet ready. */
@@ -125,6 +125,12 @@ public class MonacoPane extends StackPane {
     @Nonnull
     public IntegerProperty scrollDeltaLinesProperty() {
         return scrollDeltaLines;
+    }
+
+    /** Returns the {@link WebView} that hosts the Monaco editor. */
+    @Nonnull
+    public WebView getWebView() {
+        return webView;
     }
 
     /**
@@ -450,9 +456,9 @@ public class MonacoPane extends StackPane {
      */
     @SuppressWarnings("this-escape")
     public MonacoPane(@Nonnull Consumer<MonacoContext> setup, @Nullable PrintStream console) {
-        var view = new WebView();
-        getChildren().add(view);
-        var engine = view.getEngine();
+        webView = new WebView();
+        getChildren().add(webView);
+        var engine = webView.getEngine();
 
         // Keep strong Java references; WebEngine holds weak ones.
         var clipBridge = new ClipboardBridge();
@@ -557,7 +563,7 @@ public class MonacoPane extends StackPane {
 
         // Copy/cut: intercept before WebKit so its platform clipboard handler cannot
         // overwrite what we write to the Java clipboard.
-        view.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+        webView.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (!event.isShortcutDown()) return;
             var code = event.getCode();
             if (code != KeyCode.C && code != KeyCode.X) return;
@@ -575,7 +581,7 @@ public class MonacoPane extends StackPane {
             event.consume();
         });
 
-        view.addEventFilter(ScrollEvent.ANY, event -> {
+        webView.addEventFilter(ScrollEvent.ANY, event -> {
             if (engine.getLoadWorker().getState() != State.SUCCEEDED) return;
             int lines = Math.max(1, scrollDeltaLines.get());
             double dy = -event.getDeltaY() * lines;

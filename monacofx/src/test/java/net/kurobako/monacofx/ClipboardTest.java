@@ -8,7 +8,7 @@ import java.util.stream.Stream;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
-import javafx.scene.robot.Robot;
+import javafx.scene.input.KeyEvent;
 import monaco_editor.monaco.IPosition;
 import monaco_editor.monaco.IRange;
 import monaco_editor.monaco.editor.ITextModel;
@@ -32,15 +32,12 @@ class ClipboardTest extends MonacoPaneTestBase {
         PASTE
     }
 
-    private static Robot robot;
-
     private static final String INITIAL = "alpha\nbravo\ncharlie\ndelta\n";
     private static final String PRE_CLIP = "pre-existing clipboard text";
 
     @BeforeEach
     void resetEditor() throws Exception {
         runOnFx(() -> {
-            if (robot == null) robot = new Robot();
             editor.getModel_().setValue(INITIAL);
             setClipboard("");
             return null;
@@ -127,6 +124,9 @@ class ClipboardTest extends MonacoPaneTestBase {
         }
     }
 
+    private static final boolean IS_MAC =
+            System.getProperty("os.name", "").toLowerCase().contains("mac");
+    // XXX Robot doesn't really work on macOS it seems
     private void doKeyboard(String action) throws Exception {
         KeyCode key =
                 switch (action) {
@@ -136,10 +136,8 @@ class ClipboardTest extends MonacoPaneTestBase {
                     default -> throw new IllegalArgumentException(action);
                 };
         runOnFx(() -> {
-            robot.keyPress(KeyCode.CONTROL);
-            robot.keyPress(key);
-            robot.keyRelease(key);
-            robot.keyRelease(KeyCode.CONTROL);
+            editor.focus();
+            pane.getWebView().fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", key, false, !IS_MAC, false, IS_MAC));
             return null;
         });
     }

@@ -171,6 +171,7 @@
                     <forkCount>1</forkCount>
                     <reuseForks>false</reuseForks>
                     <forkedProcessExitTimeoutInSeconds>5</forkedProcessExitTimeoutInSeconds>
+                    <redirectTestOutputToFile>true</redirectTestOutputToFile>
                     <argLine>
                         @{argLine}
                         --add-exports javafx.web/com.sun.javafx.webkit=ALL-UNNAMED
