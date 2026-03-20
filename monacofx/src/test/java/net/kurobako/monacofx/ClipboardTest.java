@@ -45,7 +45,7 @@ class ClipboardTest extends MonacoPaneTestBase {
             setClipboard("");
             return null;
         });
-        Thread.sleep(100);
+        waitMs(100);
     }
 
     static Stream<Arguments> clipboardTestCases() {
@@ -70,17 +70,17 @@ class ClipboardTest extends MonacoPaneTestBase {
 
     private void testCopy(Method copyMethod, Method pasteMethod) throws Exception {
         runOnFxVoid(() -> selectLine(2));
-        Thread.sleep(150);
+        waitMs(150);
         doAction(copyMethod, "copy");
-        Thread.sleep(200);
+        waitMs(200);
 
         assertThat(runOnFx(this::getClipboard)).contains("bravo");
         assertThat(runOnFx(() -> editor.getModel_().getValue())).isEqualTo(INITIAL);
 
         runOnFxVoid(this::moveCursorToEnd);
-        Thread.sleep(100);
+        waitMs(100);
         doAction(pasteMethod, "paste");
-        Thread.sleep(300);
+        waitMs(300);
 
         String after = runOnFx(() -> editor.getModel_().getValue());
         assertThat(after).contains("bravo");
@@ -89,33 +89,33 @@ class ClipboardTest extends MonacoPaneTestBase {
 
     private void testCut(Method cutMethod, Method pasteMethod) throws Exception {
         runOnFxVoid(() -> selectLine(2));
-        Thread.sleep(150);
+        waitMs(150);
         doAction(cutMethod, "cut");
-        Thread.sleep(200);
+        waitMs(200);
 
         assertThat(runOnFx(this::getClipboard)).contains("bravo");
         assertThat(runOnFx(() -> editor.getModel_().getValue())).doesNotContain("bravo");
 
         runOnFxVoid(this::moveCursorToEnd);
-        Thread.sleep(100);
+        waitMs(100);
         doAction(pasteMethod, "paste");
-        Thread.sleep(300);
+        waitMs(300);
 
         assertThat(runOnFx(() -> editor.getModel_().getValue())).contains("bravo");
     }
 
     private void testPaste(Method pasteMethod, boolean prePopulated) throws Exception {
         runOnFxVoid(this::moveCursorToEnd);
-        Thread.sleep(100);
+        waitMs(100);
 
         if (prePopulated) {
             doAction(pasteMethod, "paste");
-            Thread.sleep(300);
+            waitMs(300);
             assertThat(runOnFx(() -> editor.getModel_().getValue())).contains(PRE_CLIP);
         } else {
             String before = runOnFx(() -> editor.getModel_().getValue());
             doAction(pasteMethod, "paste");
-            Thread.sleep(300);
+            waitMs(300);
             assertThat(runOnFx(() -> editor.getModel_().getValue())).isEqualTo(before);
         }
     }

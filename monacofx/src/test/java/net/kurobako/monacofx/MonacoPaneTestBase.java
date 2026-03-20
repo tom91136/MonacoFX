@@ -30,6 +30,7 @@ abstract class MonacoPaneTestBase {
     protected static Stage stage;
     protected static MonacoPane pane;
     protected static ICodeEditor editor;
+    protected static final double SCALAR = Double.parseDouble(System.getenv().getOrDefault("TEST_SCALAR", "1"));
 
     @BeforeAll
     static void startMonaco() throws Exception {
@@ -69,7 +70,7 @@ abstract class MonacoPaneTestBase {
         ctx = ref.get();
         assertThat(ctx).isNotNull();
         editor = runOnFx(() -> ctx.monaco().editor().getEditors().get(0));
-        Thread.sleep(500);
+        waitMs(500);
     }
 
     @AfterAll
@@ -101,6 +102,10 @@ abstract class MonacoPaneTestBase {
             task.run();
             return null;
         });
+    }
+
+    protected static void waitMs(long ms) throws InterruptedException {
+        Thread.sleep((long) (ms * SCALAR));
     }
 
     private static boolean hasDisplay() {

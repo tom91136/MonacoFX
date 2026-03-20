@@ -59,6 +59,8 @@ jobs:
 
       - name: Test (Windows/macOS)
         if: runner.os != 'Linux'
+        env:
+          TEST_SCALAR: ${{ runner.os == 'macOS' && '2' || '1' }}
         run: ./mvnw -B verify "-Djavafx.version=${{ matrix.javafx }}"
 
       - name: Upload library jars

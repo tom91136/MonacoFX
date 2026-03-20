@@ -89,7 +89,7 @@ class JsBridgeTest extends MonacoPaneTestBase {
 
         // Poll for the async result (worker init can take a moment).
         for (int i = 0; i < 40; i++) {
-            Thread.sleep(250);
+            waitMs(250);
             String r = runOnFx(() -> {
                 Object v = ctx.engine.executeScript("window.__workerTestResult");
                 return v == null ? "null" : v.toString();

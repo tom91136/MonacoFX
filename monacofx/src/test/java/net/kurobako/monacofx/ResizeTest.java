@@ -15,7 +15,7 @@ class ResizeTest extends MonacoPaneTestBase {
     @BeforeEach
     void resetSize() throws Exception {
         resizeStage(W, H);
-        Thread.sleep(500);
+        waitMs(500);
     }
 
     @Test
@@ -59,7 +59,7 @@ class ResizeTest extends MonacoPaneTestBase {
             stage.getScene().getRoot().layout();
             return null;
         });
-        Thread.sleep(200);
+        waitMs(200);
         runOnFx(() -> {
             ctx.engine.executeScript("(function(){" + "  var eds=monaco.editor.getEditors();"
                     + "  for(var i=0;i<eds.length;i++)eds[i].layout();"
@@ -77,7 +77,7 @@ class ResizeTest extends MonacoPaneTestBase {
                 return new double[] {pane.getWidth(), pane.getHeight(), layout.width(), layout.height()};
             });
             if (Math.abs(sizes[2] - sizes[0]) <= tolerance && Math.abs(sizes[3] - sizes[1]) <= tolerance) return;
-            Thread.sleep(250);
+            waitMs(250);
         }
         assertThat(sizes[2]).as("editor width").isCloseTo(sizes[0], offset(tolerance));
         assertThat(sizes[3]).as("editor height").isCloseTo(sizes[1], offset(tolerance));
