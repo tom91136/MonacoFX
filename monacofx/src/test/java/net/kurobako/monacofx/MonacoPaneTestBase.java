@@ -104,6 +104,7 @@ abstract class MonacoPaneTestBase {
     }
 
     private static boolean hasDisplay() {
+        if (!System.getProperty("os.name", "").toLowerCase().contains("linux")) return true;
         String d = System.getenv("DISPLAY");
         return d != null && !d.isBlank();
     }

@@ -26,10 +26,13 @@ class JsInteropIntegrationTest {
 
     @BeforeAll
     static void setup() throws Exception {
-        String display = System.getenv("DISPLAY");
-        assumeTrue(
-                display != null && !display.isBlank(),
-                "Skipping: no DISPLAY set (WebView requires a real or virtual display, use xvfb-run in CI)");
+        boolean isLinux = System.getProperty("os.name", "").toLowerCase().contains("linux");
+        if (isLinux) {
+            String display = System.getenv("DISPLAY");
+            assumeTrue(
+                    display != null && !display.isBlank(),
+                    "Skipping: no DISPLAY set (WebView requires a real or virtual display, use xvfb-run in CI)");
+        }
 
         CountDownLatch latch = new CountDownLatch(1);
         try {
