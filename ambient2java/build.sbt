@@ -29,6 +29,12 @@ lazy val ambient2java = (project in file("."))
 			"-source",
 			"3.8"
 		),
+		// jdk.jsobject removed in JDK 26; org.openjfx:jdk-jsobject provides it
+		libraryDependencies ++= (
+			if (scala.util.Properties.isJavaAtLeast("26"))
+				Seq("org.openjfx" % "jdk-jsobject" % "26")
+			else Seq.empty
+		),
 		libraryDependencies ++= Seq(
 			"com.google.code.findbugs" % "jsr305" % "3.0.2",
 			"com.vladsch.flexmark" % "flexmark-all" % "0.64.8",
