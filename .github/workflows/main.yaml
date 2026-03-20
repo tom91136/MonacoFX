@@ -43,7 +43,11 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq sbt > /dev/null
 
       - name: Resolve dependencies
-        run: ./mvnw -B dependency:go-offline "-Djavafx.version=${{ matrix.javafx }}" -q
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          command: ./mvnw -B dependency:go-offline "-Djavafx.version=${{ matrix.javafx }}" -q
 
       - name: Build
         run: ./mvnw -B clean package -DskipTests "-Djavafx.version=${{ matrix.javafx }}"
