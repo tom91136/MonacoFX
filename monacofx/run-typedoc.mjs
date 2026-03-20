@@ -26,6 +26,7 @@ const typedocMain = resolve("node_modules/typedoc/bin/typedoc");
 
 execFileSync(process.execPath, [
   typedocMain,
+  "--name", "monaco_editor",
   "--json", p(jsonOut),
   "--entryPoints", p(entryPoint),
   "--skipErrorChecking",

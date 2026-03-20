@@ -9,7 +9,8 @@
 // node_modules (the build.sbt task already installs it there).
 
 import { createRequire } from "module";
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync } from "fs";
+import { dirname } from "path";
 
 const require = createRequire(process.cwd() + "/package.json");
 const ts = require("typescript");
@@ -59,4 +60,5 @@ const filtered = names.filter(n =>
 console.log(`Found ${filtered.length} top-level declarations to export`);
 
 const exportLine = `export { ${filtered.join(", ")} };`;
+mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, src + "\n" + exportLine + "\n", "utf-8");
