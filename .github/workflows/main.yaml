@@ -10,9 +10,6 @@ on:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -46,10 +43,10 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq sbt > /dev/null
 
       - name: Resolve dependencies
-        run: ./mvnw -B dependency:go-offline -Djavafx.version=${{ matrix.javafx }} -q
+        run: ./mvnw -B dependency:go-offline "-Djavafx.version=${{ matrix.javafx }}" -q
 
       - name: Build
-        run: ./mvnw -B clean package -DskipTests -Djavafx.version=${{ matrix.javafx }}
+        run: ./mvnw -B clean package -DskipTests "-Djavafx.version=${{ matrix.javafx }}"
 
       - name: Test (Linux)
         if: runner.os == 'Linux'
@@ -58,11 +55,11 @@ jobs:
         run: |
           Xvfb :99 -screen 0 1024x768x24 -ac &
           sleep 1
-          ./mvnw -B verify -Djavafx.version=${{ matrix.javafx }}
+          ./mvnw -B verify "-Djavafx.version=${{ matrix.javafx }}"
 
       - name: Test (Windows/macOS)
         if: runner.os != 'Linux'
-        run: ./mvnw -B verify -Djavafx.version=${{ matrix.javafx }}
+        run: ./mvnw -B verify "-Djavafx.version=${{ matrix.javafx }}"
 
       - name: Upload library jars
         if: github.event_name == 'push' && !env.ACT
