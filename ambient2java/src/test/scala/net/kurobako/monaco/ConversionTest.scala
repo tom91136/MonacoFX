@@ -9,7 +9,8 @@ import munit.FunSuite
 
 class ConversionTest extends FunSuite {
 
-  private val isWindows = sys.props("os.name").toLowerCase.contains("win")
+  private val isWindows                 = sys.props("os.name").toLowerCase.contains("win")
+  private def posix(path: Path): String = path.toAbsolutePath.toString.replace("\\", "/")
 
   private val typedocVersion = sys.env.getOrElse(
     "TYPEDOC_VERSION",
@@ -70,16 +71,16 @@ class ConversionTest extends FunSuite {
       val rc         = Process(
         Seq(
           "node",
-          typedocBin.toAbsolutePath.toString,
+          posix(typedocBin),
           "--name",
           "test_module",
           "--json",
-          jsonOut.toAbsolutePath.toString,
+          posix(jsonOut),
           "--entryPoints",
-          dtsFile.toAbsolutePath.toString,
+          posix(dtsFile),
           "--skipErrorChecking",
           "--tsconfig",
-          tsconfig.toAbsolutePath.toString
+          posix(tsconfig)
         ),
         workDir.toFile
       ).!
