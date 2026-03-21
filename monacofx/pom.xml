@@ -108,20 +108,37 @@
                             </arguments>
                         </configuration>
                     </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
                     <execution>
                         <id>ambient2java</id>
                         <phase>generate-sources</phase>
                         <goals>
-                            <goal>npx</goal>
+                            <goal>java</goal>
                         </goals>
                         <configuration>
-                            <arguments>--yes node ${project.basedir}/run-ambient2java.mjs
-                                ${project.basedir}/.. ${typedoc.json} ${monaco.dts}
-                                ${monaco.generated.dir}
+                            <mainClass>net.kurobako.monaco.TsToJavaAst</mainClass>
+                            <arguments>
+                                <argument>${typedoc.json}</argument>
+                                <argument>${monaco.dts}</argument>
+                                <argument>${monaco.generated.dir}</argument>
                             </arguments>
+                            <includeProjectDependencies>false</includeProjectDependencies>
+                            <includePluginDependencies>true</includePluginDependencies>
                         </configuration>
                     </execution>
                 </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>net.kurobako</groupId>
+                        <artifactId>ambient2java</artifactId>
+                        <version>${project.version}</version>
+                    </dependency>
+                </dependencies>
             </plugin>
             <plugin>
                 <artifactId>maven-resources-plugin</artifactId>

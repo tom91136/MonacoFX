@@ -25,6 +25,7 @@
     </properties>
 
     <modules>
+        <module>ambient2java</module>
         <module>js-support</module>
         <module>monacofx</module>
         <module>monacofx-sample</module>
@@ -266,16 +267,6 @@
                                 <formatJavadoc>true</formatJavadoc>
                             </palantirJavaFormat>
                         </java>
-                        <scala>
-                            <includes>
-                                <include>ambient2java/src/**/*.scala</include>
-                            </includes>
-                            <scalafmt>
-                                <version>3.9.8</version>
-                                <file>${maven.multiModuleProjectDirectory}/ambient2java/.scalafmt.conf</file>
-                                <scalaMajorVersion>2.13</scalaMajorVersion>
-                            </scalafmt>
-                        </scala>
                     </configuration>
                 </plugin>
             </plugins>

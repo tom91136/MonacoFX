@@ -42,14 +42,11 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: 'maven'
 
-      - name: Install xvfb, JavaFX dependencies, and sbt
+      - name: Install xvfb and JavaFX dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq xvfb libgtk-3-0 libgl1 apt-transport-https > /dev/null
-          echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
-          curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo apt-key add -
-          sudo apt-get update -qq && sudo apt-get install -y -qq sbt > /dev/null
+          sudo apt-get install -y -qq xvfb libgtk-3-0 libgl1 > /dev/null
 
       - name: Resolve dependencies
         uses: nick-fields/retry@v4
@@ -110,14 +107,6 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
           cache: 'maven'
-
-      - name: Install sbt
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq apt-transport-https > /dev/null
-          echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
-          curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo apt-key add -
-          sudo apt-get update -qq && sudo apt-get install -y -qq sbt > /dev/null
 
       - name: Build sample uberjar
         run: |
