@@ -76,36 +76,22 @@ jobs:
           TEST_SCALAR: ${{ runner.os == 'macOS' && '2' || '1' }}
         run: ./mvnw -B verify "-Djavafx.version=${{ matrix.javafx }}"
 
-      - name: Create artifact zip (Linux/macOS)
-        if: github.event_name == 'push' && !env.ACT && runner.os != 'Windows'
+      - name: Stage artifacts
+        if: github.event_name == 'push' && !env.ACT
         shell: bash
         run: |
-          prefix="monacofx-${{ matrix.os }}-jdk${{ matrix.java }}-javafx${{ matrix.javafx }}"
           mkdir -p staging
           cp js-support/target/js-support-*.jar staging/
           cp monacofx/target/monacofx-*.jar staging/
           cp monacofx-sample/target/monacofx-sample-*-jar-with-dependencies.jar staging/
           rm -f staging/*-sources.jar staging/*-javadoc.jar
-          (cd staging && zip "../${prefix}.zip" *.jar)
-
-      - name: Create artifact zip (Windows)
-        if: github.event_name == 'push' && !env.ACT && runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $prefix = "monacofx-${{ matrix.os }}-jdk${{ matrix.java }}-javafx${{ matrix.javafx }}"
-          New-Item -ItemType Directory -Force staging | Out-Null
-          Copy-Item js-support/target/js-support-*.jar staging/
-          Copy-Item monacofx/target/monacofx-*.jar staging/
-          Copy-Item monacofx-sample/target/monacofx-sample-*-jar-with-dependencies.jar staging/
-          Remove-Item staging/*-sources.jar, staging/*-javadoc.jar -ErrorAction SilentlyContinue
-          Compress-Archive -Path staging/*.jar -DestinationPath "$prefix.zip"
 
       - name: Upload artifacts
         if: github.event_name == 'push' && !env.ACT
         uses: actions/upload-artifact@v7
         with:
           name: monacofx-${{ matrix.os }}-jdk${{ matrix.java }}-javafx${{ matrix.javafx }}
-          path: monacofx-*.zip
+          path: staging/*.jar
           if-no-files-found: error
 
   release:
