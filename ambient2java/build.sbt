@@ -35,12 +35,12 @@ lazy val ambient2java = (project in file("."))
 				Seq("org.openjfx" % "jdk-jsobject" % "26")
 			else Seq.empty
 		),
+		libraryDependencies += "org.scalameta" %% "munit" % "1.1.0" % Test,
 		libraryDependencies ++= Seq(
 			"com.google.code.findbugs" % "jsr305" % "3.0.2",
 			"com.vladsch.flexmark" % "flexmark-all" % "0.64.8",
 			"org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0",
-			"com.github.pathikrit" %% "better-files" % "3.9.2",
-			"com.lihaoyi" %% "pprint" % "0.9.6",
+"com.lihaoyi" %% "pprint" % "0.9.6",
 			"com.lihaoyi" %% "upickle" % "4.4.3",
 			"org.typelevel" %% "cats-core" % "2.13.0",
 			"org.typelevel" %% "mouse" % "1.4.0",

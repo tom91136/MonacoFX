@@ -1,19 +1,19 @@
 package net.kurobako.monaco
 
-import better.files.File
+import scala.collection.immutable.ArraySeq
+
 import cats.syntax.all.*
 import mouse.all.*
-import net.kurobako.monaco.Ast.{Name, Sym}
+import net.kurobako.monaco.Ast.Name
+import net.kurobako.monaco.Ast.Sym
+import net.kurobako.monaco.TsAst.*
 import net.kurobako.monaco.TsAst.TsAccessor.*
 import net.kurobako.monaco.TsAst.TsAccessorKind.*
-import net.kurobako.monaco.TsAst.*
 import net.kurobako.monaco.TsAst.TsName.*
 import net.kurobako.monaco.TsAst.TsType.*
 import net.kurobako.monaco.TypeDoc.ReflectionFlag
 import upickle.default.*
 import upickle.implicits.key
-
-import scala.collection.immutable.ArraySeq
 
 object TypeDocParser2 {
 

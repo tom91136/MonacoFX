@@ -1,11 +1,12 @@
 package net.kurobako.monaco
 
-import cats.{Order, Show}
+import scala.reflect.ClassTag
+
+import cats.Order
+import cats.Show
 import cats.data.NonEmptyVector
 import cats.derived.*
 import cats.syntax.all.*
-
-import scala.reflect.ClassTag
 
 object Ast {
 

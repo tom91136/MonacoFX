@@ -51,7 +51,7 @@ public class JsPromise<T> extends JsProxy {
     /** Registers a fulfilment handler, equivalent to JS {@code promise.then(onFulfilled)}. */
     @Nonnull
     public JsPromise<T> then(@Nonnull JsCallback1<T> fulfilled) {
-        return call("then", (ctx, o) -> new JsPromise<>(ctx, o, lift), ctx.callback1(lift, fulfilled));
+        return invoke("then", (ctx, o) -> new JsPromise<>(ctx, o, lift), ctx.callback1(lift, fulfilled));
     }
 
     /**
@@ -61,7 +61,7 @@ public class JsPromise<T> extends JsProxy {
      */
     @Nonnull
     public JsPromise<T> then(@Nonnull JsCallback1<T> fulfilled, @Nonnull JsCallback1<Exception> rejected) {
-        return call(
+        return invoke(
                 "then",
                 (ctx, o) -> new JsPromise<>(ctx, o, lift),
                 ctx.callback1(lift, fulfilled),

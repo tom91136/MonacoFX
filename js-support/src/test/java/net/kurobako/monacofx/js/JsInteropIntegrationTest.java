@@ -263,14 +263,14 @@ class JsInteropIntegrationTest {
     void callJsMethod() throws Exception {
         assertThat(runOnFx(() -> new JsProxy(
                                 ctx, ctx.engine.executeScript("({greet: function(name){ return 'hi ' + name; }})"))
-                        .call("greet", JsProxy.ofMapped(String.class), "world")))
+                        .invoke("greet", JsProxy.ofMapped(String.class), "world")))
                 .isEqualTo("hi world");
     }
 
     @Test
     void callReturningUndefinedGivesNull() throws Exception {
         assertThat(runOnFx(() -> new JsProxy(ctx, ctx.engine.executeScript("({noop: function(){}})"))
-                        .call("noop", JsProxy.ofMapped(String.class))))
+                        .invoke("noop", JsProxy.ofMapped(String.class))))
                 .isNull();
     }
 

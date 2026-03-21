@@ -1,13 +1,16 @@
 package net.kurobako.monaco
 
-import cats.{Monad, Monoid, Traverse}
+import scala.collection.immutable.ArraySeq
+
+import cats.Monad
+import cats.Monoid
+import cats.Traverse
 import cats.derived.*
 import cats.syntax.all.*
 import mouse.all.*
-import net.kurobako.monaco.Ast.{Name, Sym}
+import net.kurobako.monaco.Ast.Name
+import net.kurobako.monaco.Ast.Sym
 import net.kurobako.monaco.TypeDoc.ReflectionFlag
-
-import scala.collection.immutable.ArraySeq
 
 object TsAst {
 

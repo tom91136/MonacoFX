@@ -252,11 +252,18 @@ public class JsProxy {
     }
 
     @Nullable
-    protected <T> T call(String methodName, @Nullable BiFunction<JsContext, Object, T> out, Object... args) {
+    protected <T> T invoke(String methodName, @Nullable BiFunction<JsContext, Object, T> out, Object... args) {
         Object[] unboxed = new Object[args.length];
         for (int i = 0; i < args.length; i++) unboxed[i] = unboxAll(args[i]);
         return liftResult(
                 out, asJsObject().call(methodName, unboxed), getClass().getName() + "." + methodName + "()");
+    }
+
+    // XXX static method via class ctor method */
+    @Nullable
+    protected static <T> T invokeStatic(
+            JsProxy target, String methodName, @Nullable BiFunction<JsContext, Object, T> out, Object... args) {
+        return target.invoke(methodName, out, args);
     }
 
     // XXX invokes receiver as a JS function via Function.prototype.call(null, ...args)

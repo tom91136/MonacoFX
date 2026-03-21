@@ -76,7 +76,7 @@ public class JsContext {
     public JSObject wrapFn(@Nonnull JsFn fn) {
         var wrapped = fn.wrap();
         callbackMap.add(wrapped);
-        return window.call(MK_FN_NAME, JsProxy.ofMapped(JSObject.class), wrapped);
+        return window.invoke(MK_FN_NAME, JsProxy.ofMapped(JSObject.class), wrapped);
     }
 
     /** Wraps a zero-argument Java callback into a JS function. */

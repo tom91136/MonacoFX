@@ -2,10 +2,21 @@ package net.kurobako.monaco
 
 import cats.*
 import cats.syntax.all.*
-import net.kurobako.monaco.Ast.{Name, Sym}
+import net.kurobako.monaco.Ast.Name
+import net.kurobako.monaco.Ast.Sym
 import net.kurobako.monaco.JavaAst.DelegationBody.*
 import net.kurobako.monaco.JavaAst.JEnum.JEnumEntry
-import net.kurobako.monaco.JavaAst.JType.{JPrimitive, JavaGeneric, JavaInt, JavaList, JavaLiteral, JavaObject, JavaRef, JavaString, JavaTypeVar, JavaUnion, JavaVoid}
+import net.kurobako.monaco.JavaAst.JType.JPrimitive
+import net.kurobako.monaco.JavaAst.JType.JavaGeneric
+import net.kurobako.monaco.JavaAst.JType.JavaInt
+import net.kurobako.monaco.JavaAst.JType.JavaList
+import net.kurobako.monaco.JavaAst.JType.JavaLiteral
+import net.kurobako.monaco.JavaAst.JType.JavaObject
+import net.kurobako.monaco.JavaAst.JType.JavaRef
+import net.kurobako.monaco.JavaAst.JType.JavaString
+import net.kurobako.monaco.JavaAst.JType.JavaTypeVar
+import net.kurobako.monaco.JavaAst.JType.JavaUnion
+import net.kurobako.monaco.JavaAst.JType.JavaVoid
 import net.kurobako.monaco.TsToJavaAst.*
 import netscape.javascript.JSObject
 
@@ -183,9 +194,14 @@ object JavaAst {
   )
   private def javaId(s: String): String = if (JavaKeywords.contains(s)) s"${s}_" else s
 
-  def fmtTopLevelSource(tl: JTopLevel[Name], enums: Set[String], generatedDate: String = java.time.Instant.now().toString): (String, String) = {
+  def fmtTopLevelSource(
+      tl: JTopLevel[Name],
+      enums: Set[String],
+      generatedDate: String = java.time.Instant.now().toString
+  ): (String, String) = {
 
-    val generatedAnnotation = s"""@javax.annotation.processing.Generated(value = "ambient2java", date = "$generatedDate")"""
+    val generatedAnnotation =
+      s"""@javax.annotation.processing.Generated(value = "ambient2java", date = "$generatedDate")"""
 
     def fmtDoc(lines: List[String], indent: Int = 0): String = {
       val prefix = "\t" * indent
@@ -287,7 +303,11 @@ object JavaAst {
 			   |""".stripMargin
     }
 
-    def fmtCode(x: DelegationBody[String]): (List[Name], String) = {
+    def fmtCode(
+        x: DelegationBody[String],
+        isStatic: Boolean = false,
+        jsClassPath: String = ""
+    ): (List[Name], String) = {
 
       def fmtOutWrapper(t: JType[String]): String =
         t match {
@@ -333,7 +353,11 @@ object JavaAst {
             case Nil => ""
             case xs  => xs.mkString(", ", ", ", "")
           }
-          val expr = s"""call("${name.value}", ${fmtOutWrapper(tpe.value)}$ps)"""
+          val expr = if (isStatic)
+            s"""invokeStatic(new JsProxy(ctx, ctx.engine.executeScript("$jsClassPath")), "${name.value}", ${fmtOutWrapper(
+                tpe.value
+              )}$ps)"""
+          else s"""invoke("${name.value}", ${fmtOutWrapper(tpe.value)}$ps)"""
           (tpe.value match {
             case JavaVoid => s"$expr;"
             case _        => fmtOutTpe(tpe.nullable, expr)
@@ -410,20 +434,30 @@ object JavaAst {
 							   | """.stripMargin
             }.bimap(codeNames ::: _, identity)
           },
-          methods.foldMap { case JMethod(Sym(rawName), tpeParams, params, rtn, code, doc, _) =>
+          methods.foldMap { case JMethod(Sym(rawName), tpeParams, params, rtn, code, doc, isStatic) =>
             val name                 = javaId(rawName)
-            val (codeNames, codeStr) = fmtCode(code)
+            val jsClassPath          = tl.name.fragments.toVector.drop(1).map(_.value).mkString(".")
+            val (codeNames, codeStr) = fmtCode(code, isStatic, jsClassPath)
+            val staticMod            = if (isStatic) " static" else ""
             val unchecked            = code match {
               case Override(_, _, pts) if pts.nonEmpty => "\n\t@SuppressWarnings(\"unchecked\")"
               case _                                   => ""
             }
+            val needsCtx                          = isStatic && code.isInstanceOf[Call[?]]
+            val paramResult: (List[Name], String) = {
+              val (names, str) = fmtParamList(params)
+              if (needsCtx) {
+                val prefix = s"@${JNonnull.self} ${JsContext.self} ctx"
+                (JNonnull :: JsContext :: names, if (str.isEmpty) prefix else s"$prefix, $str")
+              } else (names, str)
+            }
             Apply[(List[Name], *)].map3(
               fmtTpeParamList(tpeParams),
               fmtOutTpe(rtn, boxed = false),
-              fmtParamList(params)
+              paramResult
             ) { (tps, r, ps) =>
               s"""${fmtDoc(doc, indent = 1)}$unchecked
-							   |	public$tps $r $name($ps) $codeStr
+							   |	public$staticMod$tps $r $name($ps) $codeStr
 							   | """.stripMargin
             }.bimap(codeNames ::: _, identity)
           }

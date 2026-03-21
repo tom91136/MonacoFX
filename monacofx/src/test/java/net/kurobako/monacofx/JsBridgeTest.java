@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import monaco_editor.monaco.Uri;
 import monaco_editor.monaco.editor.ITextModel;
 import monaco_editor.monaco.languages.ILanguageExtensionPoint;
 import org.junit.jupiter.api.Test;
@@ -64,12 +65,16 @@ class JsBridgeTest extends MonacoPaneTestBase {
         assertThat(id).isNotBlank();
     }
 
-    /**
-     * Verifies that Web Workers are functional under the classpath: protocol.
-     *
-     * <p>Calls {@code monaco.languages.typescript.getTypeScriptWorker()} which returns a Promise that only resolves if
-     * the TS worker was successfully spawned and is responding.
-     */
+    @Test
+    void staticMethodParseUri() throws Exception {
+        Uri uri = runOnFx(() -> Uri.parse(ctx, "https://example.com/path?q=1#frag"));
+        assertThat((String) runOnFx(uri::scheme)).isEqualTo("https");
+        assertThat((String) runOnFx(uri::authority)).isEqualTo("example.com");
+        assertThat((String) runOnFx(uri::path)).isEqualTo("/path");
+        assertThat((String) runOnFx(uri::query)).isEqualTo("q=1");
+        assertThat((String) runOnFx(uri::fragment)).isEqualTo("frag");
+    }
+
     @Test
     void typeScriptWorkerIsAlive() throws Exception {
         AtomicReference<String> result = new AtomicReference<>();

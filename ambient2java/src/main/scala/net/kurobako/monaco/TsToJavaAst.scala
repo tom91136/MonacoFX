@@ -1,16 +1,27 @@
 package net.kurobako.monaco
 
-import better.files.File
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.Optional
+import javax.annotation.Nonnull
+import javax.annotation.Nullable
+import scala.annotation.tailrec
+import scala.collection.immutable.ArraySeq
+
 import cats.Traverse
 import cats.data.Validated
 import cats.syntax.all.*
 import com.vladsch.flexmark.html.HtmlRenderer
 import com.vladsch.flexmark.parser.Parser
 import mouse.all.*
-import net.kurobako.monaco.Ast.{Name, Sym}
+import net.kurobako.monaco.Ast.Name
+import net.kurobako.monaco.Ast.Sym
 import net.kurobako.monaco.JavaAst.*
-import net.kurobako.monaco.JavaAst.DelegationBody.{Call, GetMember, SetMember}
-import net.kurobako.monaco.JavaAst.JEnum.{JEnumEntry, JIntEnum}
+import net.kurobako.monaco.JavaAst.DelegationBody.Call
+import net.kurobako.monaco.JavaAst.DelegationBody.GetMember
+import net.kurobako.monaco.JavaAst.DelegationBody.SetMember
+import net.kurobako.monaco.JavaAst.JEnum.JEnumEntry
+import net.kurobako.monaco.JavaAst.JEnum.JIntEnum
 import net.kurobako.monaco.JavaAst.JType.*
 import net.kurobako.monaco.JavaAst.JTypeTree.*
 import net.kurobako.monaco.JavaAst.JTypeTree.Foreign.Lit
@@ -18,10 +29,6 @@ import net.kurobako.monaco.TsAst.*
 import net.kurobako.monaco.TsAst.TsName.*
 import net.kurobako.monaco.TsAst.TsType.*
 import upickle.default as upickleDefault
-
-import java.util.Optional
-import javax.annotation.{Nonnull, Nullable}
-import scala.annotation.tailrec
 
 object TsToJavaAst {
 
@@ -399,7 +406,7 @@ object TsToJavaAst {
     }
 
   def emitFunction(fn: TsFunction[Partial]): CheckM[List[JMethod[Name]]] =
-    emitCallable(fn.signatures, fn.name.sym, fn.doc, static = true, Set()).elaborate(emitError(
+    emitCallable(fn.signatures, fn.name.sym, fn.doc, static = false, Set()).elaborate(emitError(
       "function",
       fn
     )).toValidatedNel
@@ -628,15 +635,17 @@ object TsToJavaAst {
     ms.flatMap(m => m :: allModulesOf(m.modules))
 
   def runConversion(
-      jsonFile: File,
-      dtsFile: File
+      jsonFile: Path,
+      dtsFile: Path
   ): Either[Throwable, cats.data.ValidatedNel[Throwable, List[(String, String)]]] = {
     import scala.collection.parallel.CollectionConverters.*
 
     val a = for {
-      tsDocAstStr <- time(s"Read: $jsonFile")(Either.catchNonFatal(jsonFile.contentAsString))
-      tsSource  <- time(s"Read: $dtsFile")(Either.catchNonFatal(dtsFile.lines.to(scala.collection.immutable.ArraySeq)))
-      tsDocRoot <- Either.catchNonFatal(upickleDefault.read[TypeDocParser2.TSReflection](tsDocAstStr))
+      tsDocAstStr <- time(s"Read: $jsonFile")(Either.catchNonFatal(Files.readString(jsonFile)))
+      tsSource    <- time(
+        s"Read: $dtsFile"
+      )(Either.catchNonFatal(ArraySeq.unsafeWrapArray(Files.readAllLines(dtsFile).toArray(Array.empty[String]))))
+      tsDocRoot     <- Either.catchNonFatal(upickleDefault.read[TypeDocParser2.TSReflection](tsDocAstStr))
       tsTypedGlobal <- time("Read TS AST")(TypeDocParser2.liftGlobal(tsDocRoot, tsSource))
       aliases = time("Isolate alias") {
         allModulesOf(tsTypedGlobal.modules).flatMap(_.aliases).map(a =>
@@ -730,7 +739,7 @@ object TsToJavaAst {
 
   def main(args: Array[String]): Unit = {
     val (jsonFile, dtsFile, outputDir) = args.toList match {
-      case json :: dts :: out :: Nil => (File(json), File(dts), File(out))
+      case json :: dts :: out :: Nil => (Path.of(json), Path.of(dts), Path.of(out))
       case _                         =>
         System.err.println("Usage: TsToJavaAst <typedoc-json> <monaco-dts> <output-dir>")
         sys.exit(1)
@@ -751,7 +760,9 @@ object TsToJavaAst {
             if (dupes.nonEmpty) s" (${xs.size - deduped.size} duplicates removed)" else ""
           }")
         deduped.foreach { case (f, c) =>
-          (outputDir / f).createFileIfNotExists(createParents = true).overwrite(c)
+          val target = outputDir.resolve(f)
+          Files.createDirectories(target.getParent)
+          Files.writeString(target, c)
         }
     }
   }

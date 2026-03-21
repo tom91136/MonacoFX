@@ -1,6 +1,8 @@
 package net.kurobako
 
-import cats.data.{NonEmptyList, NonEmptyVector, ValidatedNel}
+import cats.data.NonEmptyList
+import cats.data.NonEmptyVector
+import cats.data.ValidatedNel
 import cats.syntax.all.*
 
 package object monaco {
