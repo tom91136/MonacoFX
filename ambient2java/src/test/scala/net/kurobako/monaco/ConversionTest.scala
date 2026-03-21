@@ -9,7 +9,7 @@ import munit.FunSuite
 
 class ConversionTest extends FunSuite {
 
-  private val isWindows                 = sys.props("os.name").toLowerCase.contains("win")
+  private val isWindows = sys.props("os.name").toLowerCase.contains("win")
 
   private val typedocVersion = sys.env.getOrElse(
     "TYPEDOC_VERSION",
