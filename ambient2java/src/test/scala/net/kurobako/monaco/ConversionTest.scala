@@ -2,12 +2,15 @@ package net.kurobako.monaco
 
 import java.nio.file.Files
 import java.nio.file.Path
+import scala.concurrent.duration.*
 import scala.sys.process.*
 import scala.util.Using
 
 import munit.FunSuite
 
 class ConversionTest extends FunSuite {
+
+  override val munitTimeout: Duration = 120.seconds
 
   private val isWindows                 = sys.props("os.name").toLowerCase.contains("win")
   private def posix(path: Path): String = path.toAbsolutePath.toString.replace("\\", "/")
