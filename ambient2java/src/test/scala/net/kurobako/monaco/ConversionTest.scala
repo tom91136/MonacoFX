@@ -9,6 +9,8 @@ import munit.FunSuite
 
 class ConversionTest extends FunSuite {
 
+  private val isWindows                 = sys.props("os.name").toLowerCase.contains("win")
+
   private val typedocVersion = sys.env.getOrElse(
     "TYPEDOC_VERSION",
     fail("TYPEDOC_VERSION env var must be set (e.g. 0.28.17)")
@@ -23,7 +25,7 @@ class ConversionTest extends FunSuite {
     dir.toFile.deleteOnExit()
     val rc = Process(
       Seq(
-        "npm",
+        if (isWindows) "npm.cmd" else "npm",
         "install",
         "--save-exact",
         s"typedoc@$typedocVersion",
